@@ -66,7 +66,7 @@
    Boolean Histogram  
    Time Histogram  
    Add your histogram in the histograms.xml file.  
-   For example, Feedback.ChromeOS.ExitPath would be an enumeration histogram.  
+   For example, TestEnum would be an enumeration histogram.  
 For enumeration types, also add an enum value.  
 ```
 <enum name="TestEnum">  

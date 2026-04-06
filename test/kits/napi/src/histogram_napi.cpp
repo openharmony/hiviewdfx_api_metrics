@@ -106,7 +106,7 @@ static napi_value AddEnumeration(napi_env env, napi_callback_info info)
 
     int32_t sample = 0;
     int32_t boundary = 0;
-    if (!GetInt32Arg(env, args[ArgIndex::INDEX_0], sample) || 
+    if (!GetInt32Arg(env, args[ArgIndex::INDEX_0], sample) ||
         !GetInt32Arg(env, args[ArgIndex::INDEX_1], boundary)) {
         return CreateUndefined(env);
     }
@@ -127,7 +127,6 @@ static napi_value AddCustomCounts(napi_env env, napi_callback_info info)
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
     if (argc < ARGC_CUSTOM_COUNTS) {
-        AP_ERROR_LOG("AddCustomCounts requires %{public}zu arguments: sample, min, max, bucketCount", ARGC_CUSTOM_COUNTS);
         return CreateUndefined(env);
     }
 

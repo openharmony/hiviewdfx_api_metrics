@@ -59,10 +59,12 @@ int32_t PluginInterface::AddEnumSample(const std::string &name, int32_t sample, 
     return plugin->AddEnumSample(name, sample, boundary);
 }
 
+const size_t COUNT_MIN_BUCKET_COUNT = 3;
+
 int32_t PluginInterface::AddCountSample(
     const std::string &name, int32_t sample, int32_t min, int32_t max, size_t bucketCount)
 {
-    if (bucketCount < 3) {
+    if (bucketCount < COUNT_MIN_BUCKET_COUNT) {
         AP_ERROR_LOG("AddCountSample: invalid bucketCount=%{public}zu, must be >= 3", bucketCount);
         return -1;
     }

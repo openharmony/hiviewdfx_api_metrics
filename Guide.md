@@ -69,7 +69,7 @@
 	- 枚举直方图
 	- 布尔直方图
 	- 时间直方图
-- 在 histograms.xml 文件中添加你的直方图
+- 在 histograms.xml 文件中需要的直方图类型
 例如，TestEnum是一个枚举直方图。
 
 ```

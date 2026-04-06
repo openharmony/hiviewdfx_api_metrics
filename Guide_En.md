@@ -153,7 +153,7 @@ Is the validity period set reasonably?
 # III. Logging Principles  
 
 ## 1. Mandatory Logging for High-Value Features  
-High-value features (e.g., flash control ball, font usage) require business-driven logging (operations, feature activity) to track feature activity and operations.  
+High-value features (e., flash control functionality, font management) require business-driven logging (feature usage tracking) to monitor operational activities and feature utilization.
 ## 2. Log Error Codes and Failure Rates as Needed  
 ## 3. For performance monitoring, security, and change deprecation needs, log as required; used to collect performance data and reference data for interface changes/deprecations.  
 ## 4. For high-performance interfaces (potentially high-frequency calls, e.g., per-frame), use business-driven logging cautiously.  

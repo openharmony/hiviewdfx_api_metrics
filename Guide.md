@@ -43,98 +43,9 @@
 ### 2.5 百分比直方图
 百分比直方图记录任意比例（等宽桶） 。
 
-## 3. 直方图生命周期
-### 3.1 新增直方图
-第一步：定义有用的指标
 
-明确需求并制定数据采集计划。
-- 为什么需要这个指标？
-- 该指标何时发布？
-- 该指标有何价值？
-- 查看仪表盘中的图表后，有哪些可以改进的地方？
 
-- 为什么需要这个指标？
-	- 追踪用户如何退出反馈应用程序
-- 该指标何时发布？
-	- 当用户关闭反馈应用时触发
-- 该指标有何价值？
-	- 确定提交率与取消率
-	- 了解用户在流程中流失的位置
-- 看完数据后，有哪些可以改进的地方？
-	- 如果kQuitNoHelpContentClicked值较高 -> 这可能表明帮助内容没有用处，因此应该提高帮助内容文章的质量。
-	- 如果kQuitNoResultFound（离线或搜索功能已关闭）值较高 -> 提高搜索可靠性，提醒用户在提交反馈时保持在线状态等。
-步骤二：创建指标
-
-- 选择直方图类型，常见类型有：
-	- 枚举直方图
-	- 布尔直方图
-	- 时间直方图
-- 在 histograms.xml 文件中需要的直方图类型
-例如，TestEnum是一个枚举直方图。
-
-```
-<histogram name="a.testkit.testapi1" enum="TestEnum" expires_after="8.0.0.100">
-  <data_type>1</data_type>
-  <data_value>@hms.core.account.retailauth.d.ts#retailAuth#login</data_value>
-  <metric_type>CALL_COUNTS</metric_type>
-  <metric_requirements>VALUE_FEATURE</metric_requirements>
-  <summary>
-    Counting how many times this api used.
-  </summary>
-</histogram>
-```
-
-对于枚举类型，请同时添加一个枚举值。
-```
-<enum name="TestEnum">
-  <int value="0" label="kQuitSearchPageHelpContentClicked"/>
-  <int value="1" label="kQuitSearchPageNoHelpContentClicked"/>
-  <int value="2" label="kQuitNoResultFound"/>
-  <int value="3" label="kQuitShareDataPageHelpContentClicked"/>
-  <int value="4" label="kQuitShareDataPageNoHelpContentClicked"/>
-  <int value="5" label="kSuccessHelpContentClicked"/>
-  <int value="6" label="kSuccessNoHelpContentClicked"/>
-</enum>
-```
-
-在 histogram_util.cc 中调用打点函数
-```
-void EmitFeedbackAppExitPath(mojom::FeedbackAppExitPath exit_path) {
-    HISTOGRAM_ENUMERATION(kFeedbackAppExitPath, exit_path);
-}
-```
-
-### 3.2 修改直方图
-当修改直方图的语义（例如，何时生成直方图、桶代表什么、数值直方图的桶范围或桶数等）时，请创建一个具有新名称的新直方图。如果用户不会在桶之间移动，且桶比例没有意义，则向枚举添加新值时无需创建新的直方图名称。否则，混合更改前后的数据进行分析可能会产生误导。
-
-在某些情况下，即使语义完全没有改变，也允许对直方图进行更改。以下是一些允许更改的示例：
-- 可以对直方图摘要进行重写，使其更加准确。
-枚举桶的标签可以更改，只要它仍然指代与之前相同的事物即可。
-
-### 3.3 废弃直方图
-废弃说明
-在 histograms.xml 的直方图描述中，通过_after 属性指定过期，该属性是必填项。可以用 YYYY-MM-DD 日期格式或 API(例如 API7.0.1)里程碑格式。 过期后记录该直方图的代码将被视为无效代码，应从代码库删除；同时应清理 histograms.xml 的条。在特殊场景下，可将过期设置为 "never"，用于标记长期保留的关键指标（通常用于跨项目监控指标）。
-。
-
-常见场景建议
-- 如果 owner 和团队都不再使用该直方图，应删除它， 如果当前不用、但存在未来使用可能，仍建议删除它。
-- 如果当前不用、将来可能用，删除它。
-- 如果当前不用，但近期可能用，设置 ~3 个月后过期。
-- 否则，设置合理的过期时间，最长不超过 1 年。
-结论是：若直方图在被查看，应自动延长，无需开发者介入。
-
-**如何为新直方图选择过期时间**
-一般应选择合理的使用期限，最长不超过 1 年。
-
-常见情况：
-- 若为评估新功能上线，过期时间与预期功能上线时间一致。
-- 若预计直方图长期有用，设置不超过 1 年的过期时间，以便之后重新评估是否确实有用。
-- 否则通常设置 3-6 个月。
-
-### 3.4 删除直方图
-请删除不再需要的直方图相关的代码，直方图会占用内存。
-
-## 4. 高性能打点
+## 3. 高性能打点
 在典型场景下，直方图点的性能开销通常低于1us。
 
 但是如果您在对性能要求特别高或“热点”的代码中记录直方图，当总数并不重要时（例如，测量延迟或比率时），可以考虑：
@@ -145,15 +56,8 @@ if ( base :: ShouldRecordSubsampledMetric ( 0.01 )) {
 ```
 例如，对于应用于每一帧都需要打点的直方图，就可以进行这些优化。
 
-## 5. 测试直方图
-### 5.1 本地测试
-进入hdc shell，提供命令行来导出直方图打点数据
-```
-hidumper -s 66568 -a all
-```
-### 5.2 端到端远程测试
-HA采集数据上报到测试环境，进行数据查看
-![image.png](https://raw.gitcode.com/user-images/assets/9605947/76a0cca4-6685-4698-8caa-95559fa2d17e/image.png 'image.png')
+## 4. 测试直方图
+根据直方图名称到大数据平台查询上报数据
 
 # 二、审核直方图
 ## 1. 如何成为审核员

@@ -22,7 +22,7 @@
 
 namespace OHOS::histogram {
 
-
+// 全局单例对象
 inline PluginInterface &GetHistogramPlugin()
 {
     static PluginInterface instance;
@@ -31,44 +31,45 @@ inline PluginInterface &GetHistogramPlugin()
 
 }  // namespace OHOS::histogram
 
-#define HISTOGRAM_BOOLEAN(name, sample)                                                   \
-    do {                                                                                  \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddBooleanSample(name, sample); \
-        if (_ret == -1) {                                                                 \
-            AP_ERROR_LOG("HISTOGRAM_BOOLEAN: ERROR %{public}s", name); \
-        }                                                                                 \
-    } while (0)
+// ---------------------------- 内联函数 ----------------------------
+inline void HistogramBoolean(const char* name, bool sample)
+{
+    auto ret = OHOS::histogram::GetHistogramPlugin().AddBooleanSample(name, sample);
+    if (ret == -1) {
+        AP_ERROR_LOG("HistogramBoolean: no plugin registered for %{public}s", name);
+    }
+}
 
-#define HISTOGRAM_ENUMERATION(name, sample, boundary)                                            \
-    do {                                                                                         \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddEnumSample(name, sample, boundary); \
-        if (_ret == -1) {                                                                        \
-            AP_ERROR_LOG("HISTOGRAM_ENUMERATION: ERROR %{public}s", name);    \
-        }                                                                                        \
-    } while (0)
+inline void HistogramEnumeration(const char* name, int sample, int boundary)
+{
+    auto ret = OHOS::histogram::GetHistogramPlugin().AddEnumSample(name, sample, boundary);
+    if (ret == -1) {
+        AP_ERROR_LOG("HistogramEnumeration: no plugin registered for %{public}s", name);
+    }
+}
 
-#define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count)                                           \
-    do {                                                                                                        \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddCountSample(name, sample, min, max, bucket_count); \
-        if (_ret == -1) {                                                                                       \
-            AP_ERROR_LOG("HISTOGRAM_CUSTOM_COUNTS: ERROR %{public}s", name);                 \
-        }                                                                                                       \
-    } while (0)
+inline void HistogramCustomCounts(const char* name, double sample, double min, double max, int bucketCount)
+{
+    auto ret = OHOS::histogram::GetHistogramPlugin().AddCountSample(name, sample, min, max, bucketCount);
+    if (ret == -1) {
+        AP_ERROR_LOG("HistogramCustomCounts: no plugin registered for %{public}s", name);
+    }
+}
 
-#define HISTOGRAM_TIMES(name, sample)                                                   \
-    do {                                                                                \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddTimeSample(name, sample);  \
-        if (_ret == -1) {                                                               \
-            AP_ERROR_LOG("HISTOGRAM_TIMES: ERROR %{public}s", name); \
-        }                                                                               \
-    } while (0)
+inline void HistogramTimes(const char* name, int64_t sample)
+{
+    auto ret = OHOS::histogram::GetHistogramPlugin().AddTimeSample(name, sample);
+    if (ret == -1) {
+        AP_ERROR_LOG("HistogramTimes: no plugin registered for %{public}s", name);
+    }
+}
 
-#define HISTOGRAM_PERCENTAGE(name, sample)                                                   \
-    do {                                                                                     \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddPercentageSample(name, sample); \
-        if (_ret == -1) {                                                                    \
-            AP_ERROR_LOG("HISTOGRAM_PERCENTAGE: ERROR %{public}s", name); \
-        }                                                                                    \
-    } while (0)
+inline void HistogramPercentage(const char* name, double sample)
+{
+    auto ret = OHOS::histogram::GetHistogramPlugin().AddPercentageSample(name, sample);
+    if (ret == -1) {
+        AP_ERROR_LOG("HistogramPercentage: no plugin registered for %{public}s", name);
+    }
+}
 
 #endif  // HISTOGRAM_PLUGIN_MACROS_H

@@ -22,6 +22,6 @@ namespace OHOS::histogram {
 HistogramBase::HistogramBase(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
     : name_(name), minimum_(minimum), maximum_(maximum), bucket_count_(bucket_count) {}
 
-HistogramBase::~HistogramBase() = default; 
+HistogramBase::~HistogramBase() = default;
 
 }  // namespace OHOS::histogram

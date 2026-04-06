@@ -1,0 +1,11 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2024. All rights reserved.
+
+import("//build/ohos.gni")
+
+part_name = "api_metrics"
+subsystem_name = "hiviewdfx"
+
+root_path = "//base/hiviewdfx/hiviewdfx_api_metrics"
+manager_path = "${root_path}/manager"
+test_path = "${root_path}/test"
+

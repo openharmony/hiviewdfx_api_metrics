@@ -15,7 +15,10 @@ import("hiviewdfx.gni")
 
 config("manager_config") {
   visibility = [ ":*" ]
-  include_dirs = [ "manager/innerkits/include" ]
+  include_dirs = [ 
+    "manager/innerkits/include",
+    "manager/histogram/include"
+  ]
 }
 
 ohos_shared_library("histogrammanager") {
@@ -24,6 +27,9 @@ ohos_shared_library("histogrammanager") {
   sources = [
     "manager/innerkits/src/plugin_manager.cpp",
     "manager/innerkits/src/plugin_interface.cpp",
+    "manager/histogram/src/histogram_base.cpp",
+    "manager/histogram/src/bucket_ranges.cpp",
+    "manager/histogram/src/shared_histogram.cpp"
   ]
 
   deps = []

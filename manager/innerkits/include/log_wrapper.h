@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef histogram_LOG_WRAPPER_H
-#define histogram_LOG_WRAPPER_H
+#ifndef HISTOGRAM_LOG_WRAPPER_H
+#define HISTOGRAM_LOG_WRAPPER_H
 
 #include "hilog/log.h"
 

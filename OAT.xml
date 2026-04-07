@@ -20,10 +20,10 @@
 <configuration>
     <oatconfig>
         <filefilterlist>
-		<filteritem type="filepath" name="image.png" desc="hvb 签名秘钥"/>
-		<filteritem type="filepath" name="image-1.png" desc="hvb 签名秘钥"/>
-		<filteritem type="filepath" name="image-2.png" desc="hvb 签名秘钥"/>
-		<filteritem type="filepath" name="image-3.png" desc="hvb 签名秘钥"/>
+		<filteritem type="filepath" name="image.png" desc="逻辑架构图"/>
+		<filteritem type="filepath" name="image-1.png" desc="部件图"/>
+		<filteritem type="filepath" name="image-2.png" desc="英文部件图"/>
+		<filteritem type="filepath" name="image-3.png" desc="英文逻辑架构图"/>
         </filefilterlist>
     </oatconfig>
 </configuration>

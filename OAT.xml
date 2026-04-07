@@ -20,7 +20,7 @@
 <configuration>
     <oatconfig>
         <filefilterlist>
-            <filefilter name-"binaryFileTypePolicy" desc="二进制文件校验策略的过滤条件">
+            <filefilter name="binaryFileTypePolicyFilter" desc="二进制文件校验策略的过滤条件">
 		        <filteritem type="filepath" name="image.png" desc="逻辑架构图"/>
 		        <filteritem type="filepath" name="image-1.png" desc="部件图"/>
 		        <filteritem type="filepath" name="image-2.png" desc="英文部件图"/>

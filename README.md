@@ -30,15 +30,15 @@ hiviewdfx_api_metrices/
 │           └── plugin_manager.cpp        # 插件加载管理
 └── test/                        # 测试demo目录
 ```
-# 仓库功能
+# 仓库功能、架构简介
+![alt text](image-1.png)
 - 提供API运行时打点的规范、云侧上传规范、接口说明、示例代码
 - 提供直方图打点接接口能力（inner API）
 - 支持基于典型统计模型进行打点数据模型统计缓存（布尔直方图、枚举直方图、计数直方图、时间统计模型）
 - 支持直方图统计数据本地持久化
 - 支持设备范围：富设备
 
-# 逻辑架构
-
+![alt text](image.png)
 - 打点策略管理：支持API 打点的新增、废弃管理，1阶段支持通过代码仓配置打点策略、2阶段支持云控
 
 - 模型层：提供直方图、分桶区间、打点样本三个类型数据结构。
@@ -49,7 +49,7 @@ hiviewdfx_api_metrices/
 
 
 # 打点规范 
-打点规范细则请参考：[打点规范](https://gitcode.com/Bigdemon/hiviewdfx_api_metrics/edit/master/standard.md)
+打点规范细则请参考：[打点规范](https://gitcode.com/openharmony-sig/hiviewdfx_api_metrics/blob/master/Guide.md)
 
 
 # 许可说明

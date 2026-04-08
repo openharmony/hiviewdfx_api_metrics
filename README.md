@@ -30,7 +30,7 @@ hiviewdfx_api_metrices/
 │           └── plugin_manager.cpp        # 插件加载管理
 └── test/                        # 测试demo目录
 ```
-# 仓库功能、架构简介
+# 仓库功能
 ![alt text](image-1.png)
 - 提供API运行时打点的规范、云侧上传规范、接口说明、示例代码
 - 提供直方图打点接接口能力（inner API）
@@ -38,6 +38,7 @@ hiviewdfx_api_metrices/
 - 支持直方图统计数据本地持久化
 - 支持设备范围：富设备
 
+# 系统架构
 ![alt text](image.png)
 - 打点策略管理：支持API 打点的新增、废弃管理，1阶段支持通过代码仓配置打点策略、2阶段支持云控
 

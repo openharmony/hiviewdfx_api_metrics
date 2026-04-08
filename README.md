@@ -72,9 +72,7 @@
    ```
    - 说明： --product-name: 产品名称，例如 rk3568、Hi3516DV300 等。 --ccache: 编译时使用缓存功能。 --build-target: 编译的部件名称，本部件名称为api_metrics。
    ## 使用说明
-   **打点规范**
-
-   打点规范细则请参考：[打点规范](https://gitcode.com/openharmony-sig/hiviewdfx_api_metrics/blob/master/Guide.md)
+   打点规范的使用说明请参考：[打点规范](https://gitcode.com/openharmony-sig/hiviewdfx_api_metrics/blob/master/Guide.md)
 
    ## 许可说明
    参见对应目录的LICENSE文件及代码声明

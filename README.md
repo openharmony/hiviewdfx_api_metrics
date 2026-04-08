@@ -76,7 +76,3 @@
 
    ## 许可说明
    参见对应目录的LICENSE文件及代码声明
-
-   ## 相关仓
-   [OpenHarmony 应用开发文档](https://gitcode.com/openharmony/docs/blob/master/zh-cn/application-dev/README.md)<br>
-   [ArkTS 语言指南](https://gitcode.com/openharmony/docs/blob/master/zh-cn/application-dev/arkts-get-started.md)<br>

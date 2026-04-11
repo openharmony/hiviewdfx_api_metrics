@@ -28,9 +28,9 @@ namespace histogram {
  * 插件协议常量定义
  */
 #if (defined(__aarch64__) || defined(__x86_64__))
-inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/libhistogram_client.z.so";
+inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
 #else
-inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/libhistogram_client.z.so";
+inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/platformsdk/libhistogram.z.so";
 #endif
 
 // 插件导出的创建入口函数名

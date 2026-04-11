@@ -16,11 +16,25 @@
 
 #include "plugin_interface.h"
 
+#include <limits>
+
 namespace OHOS {
 namespace histogram {
 
+namespace {
+inline bool IsValidSample(int32_t sample)
+{
+    return sample >= 0 && sample <= std::numeric_limits<int32_t>::max();
+}
+} // namespace
+
 int32_t PluginInterface::AddBooleanSample(const std::string &name, int32_t sample)
 {
+    if (!IsValidSample(sample)) {
+        AP_ERROR_LOG("AddBooleanSample: invalid sample=%{public}d", sample);
+        return -1;
+    }
+
     auto manager = PluginManager::GetInstance();
     if (!manager->LazyLoadPlugin()) {
         AP_ERROR_LOG("AddBooleanSample: failed to load plugin");
@@ -30,7 +44,7 @@ int32_t PluginInterface::AddBooleanSample(const std::string &name, int32_t sampl
     auto plugin = manager->GetPlugin();
     if (!plugin) {
         AP_INFO_LOG(
-            "AddBooleanSample: No Plugin, name=%{public}s, sample=%{public}d", name.c_str(), static_cast<int>(sample));
+            "AddBooleanSample: No Plugin, name=%{public}s, sample=%{public}d", name.c_str(), sample);
         return -1;
     }
 
@@ -40,6 +54,11 @@ int32_t PluginInterface::AddBooleanSample(const std::string &name, int32_t sampl
 
 int32_t PluginInterface::AddEnumSample(const std::string &name, int32_t sample, int32_t boundary)
 {
+    if (!IsValidSample(sample)) {
+        AP_ERROR_LOG("AddEnumSample: invalid sample=%{public}d", sample);
+        return -1;
+    }
+
     auto manager = PluginManager::GetInstance();
     if (!manager->LazyLoadPlugin()) {
         AP_ERROR_LOG("AddEnumSample: failed to load plugin");
@@ -59,13 +78,11 @@ int32_t PluginInterface::AddEnumSample(const std::string &name, int32_t sample, 
     return plugin->AddEnumSample(name, sample, boundary);
 }
 
-const size_t COUNT_MIN_BUCKET_COUNT = 3;
-
 int32_t PluginInterface::AddCountSample(
     const std::string &name, int32_t sample, int32_t min, int32_t max, size_t bucketCount)
 {
-    if (bucketCount < COUNT_MIN_BUCKET_COUNT) {
-        AP_ERROR_LOG("AddCountSample: invalid bucketCount=%{public}zu, must be >= 3", bucketCount);
+    if (!IsValidSample(sample)) {
+        AP_ERROR_LOG("AddCountSample: invalid sample=%{public}d", sample);
         return -1;
     }
 
@@ -93,6 +110,11 @@ int32_t PluginInterface::AddCountSample(
 
 int32_t PluginInterface::AddTimeSample(const std::string &name, int32_t sample)
 {
+    if (!IsValidSample(sample)) {
+        AP_ERROR_LOG("AddTimeSample: invalid sample=%{public}d", sample);
+        return -1;
+    }
+
     auto manager = PluginManager::GetInstance();
     if (!manager->LazyLoadPlugin()) {
         AP_ERROR_LOG("AddTimeSample: failed to load plugin");
@@ -101,9 +123,9 @@ int32_t PluginInterface::AddTimeSample(const std::string &name, int32_t sample)
 
     auto plugin = manager->GetPlugin();
     if (!plugin) {
-        AP_INFO_LOG("AddTimeSample: No Plugin, name=%{public}s, sample=%{public}lld",
+        AP_INFO_LOG("AddTimeSample: No Plugin, name=%{public}s, sample=%{public}d",
             name.c_str(),
-            static_cast<long long>(sample));
+            sample);
         return -1;
     }
 
@@ -113,6 +135,11 @@ int32_t PluginInterface::AddTimeSample(const std::string &name, int32_t sample)
 
 int32_t PluginInterface::AddPercentageSample(const std::string &name, int32_t sample)
 {
+    if (!IsValidSample(sample)) {
+        AP_ERROR_LOG("AddPercentageSample: invalid sample=%{public}d", sample);
+        return -1;
+    }
+
     auto manager = PluginManager::GetInstance();
     if (!manager->LazyLoadPlugin()) {
         AP_ERROR_LOG("AddPercentageSample: failed to load plugin");

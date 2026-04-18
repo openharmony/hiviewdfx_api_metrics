@@ -5,7 +5,7 @@
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,11 +22,9 @@
 
 namespace OHOS::histogram {
 
-// --- Histogram 实现 ---
+// --- Histogram Implementation ---
 
-Histogram::Histogram()
-    : HistogramBase("", 0, 0, 0) // 调用基类默认初始化
-{}
+Histogram::Histogram() : HistogramBase("", 0, 0, 0) {}
 
 Histogram::Histogram(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
     : HistogramBase(name, minimum, maximum, bucket_count)
@@ -38,7 +36,7 @@ void Histogram::Initialize()
 {
     bucket_ranges_ = std::make_unique<BucketRanges>(bucket_count_ + 1);
     bucket_ranges_->InitializeExponentialBuckets(minimum_, maximum_, bucket_count_);
-    counts_.assign(bucket_count_ + 1, 0); // 使用 assign 确保重新初始化
+    counts_.assign(bucket_count_ + 1, 0);
 }
 
 void Histogram::Add(int32_t value)
@@ -58,8 +56,8 @@ void Histogram::WriteToBucket(int32_t value)
     }
     
     counts_[bucket_index]++;
-    total_count_.fetch_add(1);  // 原子增加
-    sum_.fetch_add(value);      // 原子增加
+    total_count_.fetch_add(1);
+    sum_.fetch_add(value);
 }
 
 int64_t Histogram::TotalCount() const
@@ -72,17 +70,13 @@ int64_t Histogram::Sum() const
     return sum_.load();
 }
 
-// --- LinearHistogram 实现 ---
+// --- LinearHistogram Implementation ---
 
-LinearHistogram::LinearHistogram()
-    : Histogram("", 0, 0, 0)
-{}
+LinearHistogram::LinearHistogram() : Histogram("", 0, 0, 0) {}
 
 LinearHistogram::LinearHistogram(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
-    : Histogram(name, minimum, maximum, bucket_count) // 透传给父类
+    : Histogram(name, minimum, maximum, bucket_count)
 {
-    // 由于父类构造函数会调用它版本的 Initialize()，
-    // 这里需要显式调用线性版本的初始化
     LinearHistogram::Initialize();
 }
 
@@ -93,56 +87,31 @@ void LinearHistogram::Initialize()
     counts_.assign(bucket_count_ + 1, 0);
 }
 
-// --- BooleanHistogram 实现 ---
+// --- Specialized Histograms ---
 
-BooleanHistogram::BooleanHistogram()
-    : LinearHistogram("", 0, 0, 0)
-{}
+BooleanHistogram::BooleanHistogram() : LinearHistogram("", 0, 0, 0) {}
 
 BooleanHistogram::BooleanHistogram(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
-    : LinearHistogram(name, minimum, maximum, bucket_count + 1)
-{
-    // 这里会自动继承 LinearHistogram 的 Initialize() 逻辑
-}
+    : LinearHistogram(name, minimum, maximum, bucket_count + 1) {}
 
-// --- EnumHistogram 实现 ---
-
-EnumHistogram::EnumHistogram()
-    : LinearHistogram("", 0, 0, 0)
-{}
+EnumHistogram::EnumHistogram() : LinearHistogram("", 0, 0, 0) {}
 
 EnumHistogram::EnumHistogram(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
-    : LinearHistogram(name, minimum, maximum, bucket_count + 1)
-{}
+    : LinearHistogram(name, minimum, maximum, bucket_count + 1) {}
 
-// --- CountHistogram 实现 ---
-
-CountHistogram::CountHistogram()
-    : Histogram("", 0, 0, 0)
-{}
+CountHistogram::CountHistogram() : Histogram("", 0, 0, 0) {}
 
 CountHistogram::CountHistogram(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
-    : Histogram(name, minimum, maximum, bucket_count + 1)
-{}
+    : Histogram(name, minimum, maximum, bucket_count + 1) {}
 
-// --- TimeHistogram 实现 ---
-
-TimeHistogram::TimeHistogram()
-    : Histogram("", 0, 0, 0)
-{}
+TimeHistogram::TimeHistogram() : Histogram("", 0, 0, 0) {}
 
 TimeHistogram::TimeHistogram(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
-    : Histogram(name, minimum, maximum, bucket_count + 1)
-{}
+    : Histogram(name, minimum, maximum, bucket_count + 1) {}
 
-// --- PercentageHistogram 实现 ---
-
-PercentageHistogram::PercentageHistogram()
-    : LinearHistogram("", 0, 0, 0)
-{}
+PercentageHistogram::PercentageHistogram() : LinearHistogram("", 0, 0, 0) {}
 
 PercentageHistogram::PercentageHistogram(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
-    : LinearHistogram(name, minimum, maximum, bucket_count + 1)
-{}
+    : LinearHistogram(name, minimum, maximum, bucket_count + 1) {}
 
-}  // namespace OHOS::histogram
+} // namespace OHOS::histogram

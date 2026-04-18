@@ -15,10 +15,16 @@
  */
 
 #include "histogram_base.h"
-#include "bucket_ranges.h"
 
 namespace OHOS::histogram {
 
+/**
+ * @brief Constructor for the base histogram class.
+ * @param name Unique identifier for the histogram.
+ * @param minimum Minimum value for the range.
+ * @param maximum Maximum value for the range.
+ * @param bucket_count Number of statistical buckets.
+ */
 HistogramBase::HistogramBase(const std::string &name, int32_t minimum, int32_t maximum, size_t bucket_count)
     : name_(name), minimum_(minimum), maximum_(maximum), bucket_count_(bucket_count) {}
 

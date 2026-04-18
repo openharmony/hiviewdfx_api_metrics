@@ -28,31 +28,37 @@ namespace histogram {
 
 class PluginManager {
 public:
-    static std::shared_ptr<PluginManager> GetInstance();
-
     PluginManager();
     ~PluginManager();
 
+    static std::shared_ptr<PluginManager> GetInstance();
+
     bool LazyLoadPlugin();
     bool LoadPluginIfNeeded(const std::string &path);
+    bool LoadPlugin(const std::string &path);
+    bool ResolveAndCreatePlugin(const std::string &path);
+
     void RegisterPlugin(IHistogramPlugin *plugin);
     IHistogramPlugin *GetPlugin();
+
+    bool UnloadPlugin();
     void UnloadAllPlugins();
 
 private:
-    bool LoadPlugin(const std::string &path);
-    bool ResolveAndCreatePlugin(const std::string &path);
-    bool UnloadPlugin();
+
+    bool LoadPluginLocked(const std::string &path);
+    bool ResolveAndCreatePluginLocked(const std::string &path);
 
 private:
     static std::shared_ptr<PluginManager> instance_;
     static std::mutex instanceMutex_;
 
     std::mutex mutex_;
-    IHistogramPlugin *plugin_ = nullptr;
+
     void *pluginHandle_ = nullptr;
-    bool pluginHasInit_ = false;
     std::string pluginPath_;
+    IHistogramPlugin *plugin_ = nullptr;
+    bool pluginHasInit_ = false;
 };
 
 }  // namespace histogram

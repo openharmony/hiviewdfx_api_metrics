@@ -24,79 +24,67 @@
 namespace OHOS {
 namespace histogram {
 
-/*
- * 插件协议常量定义
- */
 #if (defined(__aarch64__) || defined(__x86_64__))
-inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/libhistogram_client.z.so";
+inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
 #else
-inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/libhistogram_client.z.so";
+inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/platformsdk/libhistogram.z.so";
 #endif
 
-// 插件导出的创建入口函数名
 inline const std::string CREATE_HISTOGRAM_PLUGIN = "create_histogram_plugin";
 
-// 插件状态码
 static constexpr int32_t HISTOGRAM_PLUGIN_ENABLE = 0;
 static constexpr int32_t HISTOGRAM_PLUGIN_DISABLE = -1;
 
 /**
- * @brief Histogram Plugin Interface
- *
- * 所有 Histogram 插件必须实现该接口。
- * PluginManager 只依赖该接口，不依赖具体实现。
+ * @class IHistogramPlugin
+ * @brief Abstract interface for histogram plugins.
  */
 class IHistogramPlugin {
 public:
     virtual ~IHistogramPlugin() = default;
 
     /**
-     * @brief 枚举型直方图
-     *
-     * @param histogram_name 直方图名称
-     * @param sample 枚举值
-     * @param max 枚举上界
-     * @return int32_t 执行结果
+     * @brief Records enumerated histogram samples.
+     * @param histogram_name Name of the histogram.
+     * @param sample Enumerated value.
+     * @param max Upper bound of the enum.
+     * @return 0 on success, -1 on failure.
      */
     virtual int32_t AddEnumSample(const std::string &histogram_name, int32_t sample, int32_t max) = 0;
 
     /**
-     * @brief 时间类型直方图
-     *
-     * @param histogram_name 直方图名称
-     * @param sample 时间值
-     * @return int32_t 执行结果
+     * @brief Records time-based histogram samples.
+     * @param histogram_name Name of the histogram.
+     * @param sample Time duration value.
+     * @return 0 on success, -1 on failure.
      */
     virtual int32_t AddTimeSample(const std::string &histogram_name, int32_t sample) = 0;
 
     /**
-     * @brief 计数型直方图
-     *
-     * @param histogram_name 直方图名称
-     * @param sample 计数值
-     * @param min 最小值
-     * @param max 最大值
-     * @param bucket_count 桶数量
-     * @return int32_t 执行结果
+     * @brief Records linear or exponential count samples.
+     * @param histogram_name Name of the histogram.
+     * @param sample Measured value.
+     * @param min Minimum expected value.
+     * @param max Maximum expected value.
+     * @param bucket_count Number of histogram buckets.
+     * @return 0 on success, -1 on failure.
      */
     virtual int32_t AddCountSample(
         const std::string &histogram_name, int32_t sample, int32_t min, int32_t max, size_t bucket_count) = 0;
 
     /**
-     * @brief 布尔型直方图
-     *
-     * @param histogram_name 直方图名称
-     * @param sample 0/1
-     * @return int32_t 执行结果
+     * @brief Records boolean histogram samples.
+     * @param histogram_name Name of the histogram.
+     * @param sample Boolean value (0 or 1).
+     * @return 0 on success, -1 on failure.
      */
     virtual int32_t AddBooleanSample(const std::string &histogram_name, int32_t sample) = 0;
 
     /**
-     * @brief 百分比直方图
-     *
-     * @param histogram_name 直方图名称
-     * @param sample 百分比值
-     * @return int32_t 执行结果
+     * @brief Records percentage-based histogram samples.
+     * @param histogram_name Name of the histogram.
+     * @param sample Percentage value (typically 0-100).
+     * @return 0 on success, -1 on failure.
      */
     virtual int32_t AddPercentageSample(const std::string &histogram_name, int32_t sample) = 0;
 };

@@ -33,7 +33,7 @@ std::shared_ptr<PluginManager> PluginManager::GetInstance()
     if (instance_ == nullptr) {
         std::lock_guard<std::mutex> lock(instanceMutex_);
         if (instance_ == nullptr) {
-            instance_.reset(new PluginManager());
+            instance_ = std::make_shared<PluginManager>();
         }
     }
     return instance_;
@@ -41,13 +41,11 @@ std::shared_ptr<PluginManager> PluginManager::GetInstance()
 
 PluginManager::PluginManager()
 {
-    AP_INFO_LOG("plugin_manager: construct");
 }
 
 PluginManager::~PluginManager()
 {
     UnloadAllPlugins();
-    AP_INFO_LOG("plugin_manager: destruct");
 }
 
 bool PluginManager::LazyLoadPlugin()
@@ -57,47 +55,35 @@ bool PluginManager::LazyLoadPlugin()
 
 bool PluginManager::LoadPluginIfNeeded(const std::string &path)
 {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        AP_INFO_LOG("PluginManager::LoadPluginIfNeeded got lock, pluginHasInit_=%{public}d",
-            static_cast<int32_t>(pluginHasInit_));
-
-        if (pluginHasInit_) {
-            AP_INFO_LOG("PluginManager: plugin already initialized, skipping load: %{public}s", path.c_str());
-            return true;
-        }
+    if (pluginHasInit_) {
+        return true;
     }
 
-    bool ret = LoadPlugin(path);
+    std::lock_guard<std::mutex> lock(mutex_);
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        AP_INFO_LOG("PluginManager::LoadPluginIfNeeded"
-         "leave, path=%{public}s, ret=%{public}d, pluginHasInit_=%{public}d",
-            path.c_str(),
-            static_cast<int32_t>(ret),
-            static_cast<int32_t>(pluginHasInit_));
+    if (pluginHasInit_) {
+        return true;
     }
 
-    return ret;
+    return LoadPluginLocked(path);
 }
 
 bool PluginManager::LoadPlugin(const std::string &path)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    return LoadPluginLocked(path);
+}
+
+bool PluginManager::LoadPluginLocked(const std::string &path)
 {
     if (path.empty()) {
         AP_ERROR_LOG("plugin_manager: plugin path is empty");
         return false;
     }
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (pluginHasInit_) {
-            AP_INFO_LOG("plugin_manager: plugin already loaded, path=%{public}s", path.c_str());
-            return true;
-        }
+    if (pluginHasInit_) {
+        return true;
     }
-
-    AP_INFO_LOG("plugin_manager: start load plugin, path=%{public}s", path.c_str());
 
     dlerror();
     void *handle = dlopen(path.c_str(), RTLD_NOW);
@@ -108,45 +94,39 @@ bool PluginManager::LoadPlugin(const std::string &path)
         return false;
     }
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        pluginHandle_ = handle;
-        pluginPath_ = path;
-    }
+    pluginHandle_ = handle;
+    pluginPath_ = path;
 
-    AP_INFO_LOG("plugin_manager: dlopen success, path=%{public}s", path.c_str());
-
-    if (!ResolveAndCreatePlugin(path)) {
+    if (!ResolveAndCreatePluginLocked(path)) {
         AP_ERROR_LOG("plugin_manager: load plugin failed, path=%{public}s", path.c_str());
         return false;
     }
 
-    AP_INFO_LOG("plugin_manager: plugin loaded successfully");
+    AP_DEBUG_LOG("plugin_manager: plugin loaded successfully, path=%{public}s", path.c_str());
     return true;
 }
 
 bool PluginManager::ResolveAndCreatePlugin(const std::string &path)
 {
-    void *handle = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        handle = pluginHandle_;
-    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    return ResolveAndCreatePluginLocked(path);
+}
 
-    if (handle == nullptr) {
+bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
+{
+    if (pluginHandle_ == nullptr) {
         AP_ERROR_LOG("plugin_manager: plugin handle is nullptr, path=%{public}s", path.c_str());
         return false;
     }
 
     dlerror();
-    auto createFunc = reinterpret_cast<create_plugin_func_t>(dlsym(handle, CREATE_HISTOGRAM_PLUGIN.c_str()));
+    auto createFunc = reinterpret_cast<create_plugin_func_t>(dlsym(pluginHandle_, CREATE_HISTOGRAM_PLUGIN.c_str()));
     const char *err = dlerror();
     if (err != nullptr || createFunc == nullptr) {
         AP_ERROR_LOG("plugin_manager: dlsym %{public}s failed, err=%{public}s",
             CREATE_HISTOGRAM_PLUGIN.c_str(),
             err == nullptr ? "unknown error" : err);
 
-        std::lock_guard<std::mutex> lock(mutex_);
         if (pluginHandle_ != nullptr) {
             dlclose(pluginHandle_);
             pluginHandle_ = nullptr;
@@ -157,14 +137,10 @@ bool PluginManager::ResolveAndCreatePlugin(const std::string &path)
         return false;
     }
 
-    AP_INFO_LOG("plugin_manager: before %s()", CREATE_HISTOGRAM_PLUGIN.c_str());
     IHistogramPlugin *plugin = createFunc();
-    AP_INFO_LOG("plugin_manager: after %s(), plugin=%{public}p", CREATE_HISTOGRAM_PLUGIN.c_str(), plugin);
-
     if (plugin == nullptr) {
-        AP_ERROR_LOG("plugin_manager: %s returned nullptr", CREATE_HISTOGRAM_PLUGIN.c_str());
+        AP_ERROR_LOG("plugin_manager: %{public}s returned nullptr", CREATE_HISTOGRAM_PLUGIN.c_str());
 
-        std::lock_guard<std::mutex> lock(mutex_);
         if (pluginHandle_ != nullptr) {
             dlclose(pluginHandle_);
             pluginHandle_ = nullptr;
@@ -175,12 +151,8 @@ bool PluginManager::ResolveAndCreatePlugin(const std::string &path)
         return false;
     }
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        plugin_ = plugin;
-        pluginHasInit_ = true;
-    }
-
+    plugin_ = plugin;
+    pluginHasInit_ = true;
     return true;
 }
 
@@ -194,12 +166,11 @@ void PluginManager::RegisterPlugin(IHistogramPlugin *plugin)
     std::lock_guard<std::mutex> lock(mutex_);
     plugin_ = plugin;
     pluginHasInit_ = true;
-    AP_INFO_LOG("plugin_manager: plugin registered successfully");
+    AP_DEBUG_LOG("plugin_manager: plugin registered successfully");
 }
 
 IHistogramPlugin *PluginManager::GetPlugin()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
     return plugin_;
 }
 
@@ -212,7 +183,6 @@ bool PluginManager::UnloadPlugin()
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!pluginHasInit_ && pluginHandle_ == nullptr) {
-            AP_INFO_LOG("plugin_manager: no plugin need unload");
             return true;
         }
 
@@ -226,7 +196,6 @@ bool PluginManager::UnloadPlugin()
     }
 
     if (handle == nullptr) {
-        AP_INFO_LOG("plugin_manager: plugin handle is nullptr, unload skip");
         return true;
     }
 
@@ -238,7 +207,7 @@ bool PluginManager::UnloadPlugin()
         return false;
     }
 
-    AP_INFO_LOG("plugin_manager: plugin unloaded, path=%{public}s", path.c_str());
+    AP_DEBUG_LOG("plugin_manager: plugin unloaded, path=%{public}s", path.c_str());
     return true;
 }
 
@@ -248,7 +217,6 @@ void PluginManager::UnloadAllPlugins()
         AP_ERROR_LOG("plugin_manager: UnloadAllPlugins failed");
         return;
     }
-    AP_INFO_LOG("plugin_manager: UnloadAllPlugins success");
 }
 
 }  // namespace histogram

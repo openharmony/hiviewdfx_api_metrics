@@ -22,7 +22,6 @@
 
 namespace OHOS::histogram {
 
-// 全局单例对象
 inline PluginInterface &GetHistogramPlugin()
 {
     static PluginInterface instance;
@@ -31,7 +30,10 @@ inline PluginInterface &GetHistogramPlugin()
 
 }  // namespace OHOS::histogram
 
-// ---------------------------- 宏定义 ----------------------------
+// ---------------------------- Macros ----------------------------
+/**
+ * @brief Records a boolean (0 or 1) sample.
+ */
 #define HISTOGRAM_BOOLEAN(name, sample)                                                   \
     do {                                                                                  \
         auto _ret = OHOS::histogram::GetHistogramPlugin().AddBooleanSample(name, sample); \
@@ -40,6 +42,9 @@ inline PluginInterface &GetHistogramPlugin()
         }                                                                                 \
     } while (0)
 
+/**
+ * @brief Records an enumerated sample within a defined boundary.
+ */
 #define HISTOGRAM_ENUMERATION(name, sample, boundary)                                            \
     do {                                                                                         \
         auto _ret = OHOS::histogram::GetHistogramPlugin().AddEnumSample(name, sample, boundary); \
@@ -48,6 +53,9 @@ inline PluginInterface &GetHistogramPlugin()
         }                                                                                        \
     } while (0)
 
+/**
+ * @brief Records a sample into a custom bucketing histogram.
+ */
 #define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count)                                           \
     do {                                                                                                        \
         auto _ret = OHOS::histogram::GetHistogramPlugin().AddCountSample(name, sample, min, max, bucket_count); \
@@ -56,6 +64,9 @@ inline PluginInterface &GetHistogramPlugin()
         }                                                                                                       \
     } while (0)
 
+/**
+ * @brief Records a time duration sample (usually in ms or us).
+ */
 #define HISTOGRAM_TIMES(name, sample)                                                   \
     do {                                                                                \
         auto _ret = OHOS::histogram::GetHistogramPlugin().AddTimeSample(name, sample);  \
@@ -64,6 +75,9 @@ inline PluginInterface &GetHistogramPlugin()
         }                                                                               \
     } while (0)
 
+/**
+ * @brief Records a percentage sample (0-100).
+ */
 #define HISTOGRAM_PERCENTAGE(name, sample)                                                   \
     do {                                                                                     \
         auto _ret = OHOS::histogram::GetHistogramPlugin().AddPercentageSample(name, sample); \

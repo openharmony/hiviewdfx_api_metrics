@@ -91,10 +91,8 @@ int BucketRanges::GetBucketIndex(int32_t value) const
     if (ranges_.empty()) {
         return -1;
     }
-
     auto it = std::upper_bound(ranges_.begin(), ranges_.end(), value);
     int32_t index = static_cast<int32_t>(std::distance(ranges_.begin(), it)) - 1;
-
     if (index < 0 || index >= static_cast<int32_t>(ranges_.size() - 1)) {
         return -1;
     }

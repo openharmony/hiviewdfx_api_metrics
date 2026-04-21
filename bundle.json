@@ -1,5 +1,5 @@
 {
-    "name": "@ohos/histogram_open_source",
+    "name": "@ohos/api_metrics",
     "description": "Open-source histogram api metrics module.",
     "version": "5.0",
     "license": "Apache License 2.0",

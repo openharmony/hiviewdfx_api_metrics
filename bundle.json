@@ -22,7 +22,10 @@
         "deps": {
             "components": [
                 "hilog",
-                "c_utils"
+                "c_utils",
+                "relational_store",
+                "storage_service",
+                "ffrt"
             ],
             "third_party": []
         },

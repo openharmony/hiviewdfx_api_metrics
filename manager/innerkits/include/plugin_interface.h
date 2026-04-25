@@ -23,8 +23,6 @@
 
 #include <cstdint>
 #include <string>
-#include <mutex>
-#include <unistd.h>
 
 namespace OHOS {
 namespace histogram {

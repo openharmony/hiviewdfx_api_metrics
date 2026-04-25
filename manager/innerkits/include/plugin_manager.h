@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef HISTOGRAM_PLUGIN_MANAGER_H
-#define HISTOGRAM_PLUGIN_MANAGER_H
 
+#ifndef PLUGIN_MANAGER_H
+#define PLUGIN_MANAGER_H
+
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -28,40 +30,41 @@ namespace histogram {
 
 class PluginManager {
 public:
+    static PluginManager &GetInstance();
+
     PluginManager();
     ~PluginManager();
-
-    static std::shared_ptr<PluginManager> GetInstance();
 
     bool LazyLoadPlugin();
     bool LoadPluginIfNeeded(const std::string &path);
     bool LoadPlugin(const std::string &path);
-    bool ResolveAndCreatePlugin(const std::string &path);
 
     void RegisterPlugin(IHistogramPlugin *plugin);
-    IHistogramPlugin *GetPlugin();
+
+    inline IHistogramPlugin *GetPlugin() const
+    {
+        return plugin_.load(std::memory_order_acquire);
+    }
 
     bool UnloadPlugin();
     void UnloadAllPlugins();
 
 private:
-
     bool LoadPluginLocked(const std::string &path);
     bool ResolveAndCreatePluginLocked(const std::string &path);
+    void ResetPluginLocked();
 
 private:
-    static std::shared_ptr<PluginManager> instance_;
-    static std::mutex instanceMutex_;
-
     std::mutex mutex_;
 
     void *pluginHandle_ = nullptr;
     std::string pluginPath_;
-    IHistogramPlugin *plugin_ = nullptr;
-    bool pluginHasInit_ = false;
+
+    std::atomic<IHistogramPlugin *> plugin_ { nullptr };
+    std::atomic<bool> pluginHasInit_ { false };
 };
 
-}  // namespace histogram
-}  // namespace OHOS
+} // namespace histogram
+} // namespace OHOS
 
-#endif  // HISTOGRAM_PLUGIN_MANAGER_H
+#endif // PLUGIN_MANAGER_H

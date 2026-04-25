@@ -5,7 +5,7 @@
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,25 +23,17 @@
 namespace OHOS {
 namespace histogram {
 
-using create_plugin_func_t = IHistogramPlugin *(*)();
-
-std::shared_ptr<PluginManager> PluginManager::instance_ = nullptr;
-std::mutex PluginManager::instanceMutex_;
-
-std::shared_ptr<PluginManager> PluginManager::GetInstance()
-{
-    if (instance_ == nullptr) {
-        std::lock_guard<std::mutex> lock(instanceMutex_);
-        if (instance_ == nullptr) {
-            instance_ = std::make_shared<PluginManager>();
-        }
-    }
-    return instance_;
+namespace {
+using CreatePluginFunc = IHistogramPlugin *(*)();
 }
 
-PluginManager::PluginManager()
+PluginManager &PluginManager::GetInstance()
 {
+    static PluginManager instance;
+    return instance;
 }
+
+PluginManager::PluginManager() = default;
 
 PluginManager::~PluginManager()
 {
@@ -55,13 +47,13 @@ bool PluginManager::LazyLoadPlugin()
 
 bool PluginManager::LoadPluginIfNeeded(const std::string &path)
 {
-    if (pluginHasInit_) {
+    if (pluginHasInit_.load(std::memory_order_acquire)) {
         return true;
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
 
-    if (pluginHasInit_) {
+    if (pluginHasInit_.load(std::memory_order_relaxed)) {
         return true;
     }
 
@@ -81,16 +73,15 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
         return false;
     }
 
-    if (pluginHasInit_) {
+    if (pluginHasInit_.load(std::memory_order_relaxed)) {
         return true;
     }
 
-    dlerror();
-    void *handle = dlopen(path.c_str(), RTLD_NOW);
+    (void)dlerror();
+    void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (handle == nullptr) {
         AP_ERROR_LOG("plugin_manager: dlopen failed, path=%{public}s, err=%{public}s",
-            path.c_str(),
-            dlerror());
+            path.c_str(), dlerror());
         return false;
     }
 
@@ -98,18 +89,15 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
     pluginPath_ = path;
 
     if (!ResolveAndCreatePluginLocked(path)) {
-        AP_ERROR_LOG("plugin_manager: load plugin failed, path=%{public}s", path.c_str());
+        AP_ERROR_LOG("plugin_manager: resolve plugin failed, path=%{public}s", path.c_str());
+        (void)dlclose(handle);
+        pluginHandle_ = nullptr;
+        pluginPath_.clear();
         return false;
     }
 
     AP_DEBUG_LOG("plugin_manager: plugin loaded successfully, path=%{public}s", path.c_str());
     return true;
-}
-
-bool PluginManager::ResolveAndCreatePlugin(const std::string &path)
-{
-    std::lock_guard<std::mutex> lock(mutex_);
-    return ResolveAndCreatePluginLocked(path);
 }
 
 bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
@@ -119,40 +107,26 @@ bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
         return false;
     }
 
-    dlerror();
-    auto createFunc = reinterpret_cast<create_plugin_func_t>(dlsym(pluginHandle_, CREATE_HISTOGRAM_PLUGIN.c_str()));
-    const char *err = dlerror();
-    if (err != nullptr || createFunc == nullptr) {
+    auto createFunc = reinterpret_cast<CreatePluginFunc>(
+        dlsym(pluginHandle_, CREATE_HISTOGRAM_PLUGIN.c_str()));
+    if (createFunc == nullptr) {
+        const char *err = dlerror();
         AP_ERROR_LOG("plugin_manager: dlsym %{public}s failed, err=%{public}s",
             CREATE_HISTOGRAM_PLUGIN.c_str(),
             err == nullptr ? "unknown error" : err);
-
-        if (pluginHandle_ != nullptr) {
-            dlclose(pluginHandle_);
-            pluginHandle_ = nullptr;
-        }
-        plugin_ = nullptr;
-        pluginHasInit_ = false;
-        pluginPath_.clear();
+        ResetPluginLocked();
         return false;
     }
 
     IHistogramPlugin *plugin = createFunc();
     if (plugin == nullptr) {
-        AP_ERROR_LOG("plugin_manager: %{public}s returned nullptr", CREATE_HISTOGRAM_PLUGIN.c_str());
-
-        if (pluginHandle_ != nullptr) {
-            dlclose(pluginHandle_);
-            pluginHandle_ = nullptr;
-        }
-        plugin_ = nullptr;
-        pluginHasInit_ = false;
-        pluginPath_.clear();
+        AP_ERROR_LOG("plugin_manager: create plugin returned nullptr");
+        ResetPluginLocked();
         return false;
     }
 
-    plugin_ = plugin;
-    pluginHasInit_ = true;
+    plugin_.store(plugin, std::memory_order_release);
+    pluginHasInit_.store(true, std::memory_order_release);
     return true;
 }
 
@@ -164,14 +138,8 @@ void PluginManager::RegisterPlugin(IHistogramPlugin *plugin)
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    plugin_ = plugin;
-    pluginHasInit_ = true;
-    AP_DEBUG_LOG("plugin_manager: plugin registered successfully");
-}
-
-IHistogramPlugin *PluginManager::GetPlugin()
-{
-    return plugin_;
+    plugin_.store(plugin, std::memory_order_release);
+    pluginHasInit_.store(true, std::memory_order_release);
 }
 
 bool PluginManager::UnloadPlugin()
@@ -182,32 +150,26 @@ bool PluginManager::UnloadPlugin()
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        if (!pluginHasInit_ && pluginHandle_ == nullptr) {
+        if (!pluginHasInit_.load(std::memory_order_acquire) && pluginHandle_ == nullptr) {
             return true;
         }
 
         handle = pluginHandle_;
         path = pluginPath_;
 
-        plugin_ = nullptr;
-        pluginHandle_ = nullptr;
-        pluginHasInit_ = false;
-        pluginPath_.clear();
+        ResetPluginLocked();
     }
 
     if (handle == nullptr) {
         return true;
     }
 
-    int ret = dlclose(handle);
-    if (ret != 0) {
+    if (dlclose(handle) != 0) {
         AP_ERROR_LOG("plugin_manager: dlclose failed, path=%{public}s, err=%{public}s",
-            path.c_str(),
-            dlerror());
+            path.c_str(), dlerror());
         return false;
     }
 
-    AP_DEBUG_LOG("plugin_manager: plugin unloaded, path=%{public}s", path.c_str());
     return true;
 }
 
@@ -215,9 +177,16 @@ void PluginManager::UnloadAllPlugins()
 {
     if (!UnloadPlugin()) {
         AP_ERROR_LOG("plugin_manager: UnloadAllPlugins failed");
-        return;
     }
 }
 
-}  // namespace histogram
-}  // namespace OHOS
+void PluginManager::ResetPluginLocked()
+{
+    plugin_.store(nullptr, std::memory_order_release);
+    pluginHasInit_.store(false, std::memory_order_release);
+    pluginHandle_ = nullptr;
+    pluginPath_.clear();
+}
+
+} // namespace histogram
+} // namespace OHOS

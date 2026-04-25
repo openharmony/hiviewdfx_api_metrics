@@ -20,6 +20,10 @@
 #include "plugin_interface.h"
 #include "log_wrapper.h"
 
+#ifndef HISTOGRAM_UNLIKELY
+#define HISTOGRAM_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#endif
+
 namespace OHOS::histogram {
 
 inline PluginInterface &GetHistogramPlugin()
@@ -28,62 +32,48 @@ inline PluginInterface &GetHistogramPlugin()
     return instance;
 }
 
-}  // namespace OHOS::histogram
+} // namespace OHOS::histogram
 
-// ---------------------------- Macros ----------------------------
-/**
- * @brief Records a boolean (0 or 1) sample.
- */
 #define HISTOGRAM_BOOLEAN(name, sample)                                                   \
     do {                                                                                  \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddBooleanSample(name, sample); \
-        if (_ret == -1) {                                                                 \
-            AP_ERROR_LOG("HISTOGRAM_BOOLEAN: error for %{public}s", name); \
+        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddBooleanSample(name, sample); \
+        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                               \
+            AP_ERROR_LOG("HISTOGRAM_BOOLEAN failed, name=%{public}s", name);              \
         }                                                                                 \
     } while (0)
 
-/**
- * @brief Records an enumerated sample within a defined boundary.
- */
-#define HISTOGRAM_ENUMERATION(name, sample, boundary)                                            \
-    do {                                                                                         \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddEnumSample(name, sample, boundary); \
-        if (_ret == -1) {                                                                        \
-            AP_ERROR_LOG("HISTOGRAM_ENUMERATION: error for %{public}s", name);    \
-        }                                                                                        \
+#define HISTOGRAM_ENUMERATION(name, sample, boundary)                                    \
+    do {                                                                                 \
+        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddEnumSample(               \
+            name, sample, boundary);                                                     \
+        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                              \
+            AP_ERROR_LOG("HISTOGRAM_ENUMERATION failed, name=%{public}s", name);         \
+        }                                                                                \
     } while (0)
 
-/**
- * @brief Records a sample into a custom bucketing histogram.
- */
-#define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count)                                           \
-    do {                                                                                                        \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddCountSample(name, sample, min, max, bucket_count); \
-        if (_ret == -1) {                                                                                       \
-            AP_ERROR_LOG("HISTOGRAM_CUSTOM_COUNTS: error for %{public}s", name);                 \
-        }                                                                                                       \
+#define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count)                    \
+    do {                                                                                 \
+        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddCountSample(              \
+            name, sample, min, max, bucket_count);                                       \
+        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                              \
+            AP_ERROR_LOG("HISTOGRAM_CUSTOM_COUNTS failed, name=%{public}s", name);       \
+        }                                                                                \
     } while (0)
 
-/**
- * @brief Records a time duration sample (usually in ms or us).
- */
-#define HISTOGRAM_TIMES(name, sample)                                                   \
-    do {                                                                                \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddTimeSample(name, sample);  \
-        if (_ret == -1) {                                                               \
-            AP_ERROR_LOG("HISTOGRAM_TIMES: error for %{public}s", name); \
-        }                                                                               \
+#define HISTOGRAM_TIMES(name, sample)                                                    \
+    do {                                                                                 \
+        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddTimeSample(name, sample); \
+        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                              \
+            AP_ERROR_LOG("HISTOGRAM_TIMES failed, name=%{public}s", name);               \
+        }                                                                                \
     } while (0)
 
-/**
- * @brief Records a percentage sample (0-100).
- */
-#define HISTOGRAM_PERCENTAGE(name, sample)                                                   \
-    do {                                                                                     \
-        auto _ret = OHOS::histogram::GetHistogramPlugin().AddPercentageSample(name, sample); \
-        if (_ret == -1) {                                                                    \
-            AP_ERROR_LOG("HISTOGRAM_PERCENTAGE: error for %{public}s", name); \
-        }                                                                                    \
+#define HISTOGRAM_PERCENTAGE(name, sample)                                               \
+    do {                                                                                 \
+        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddPercentageSample(name, sample); \
+        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                              \
+            AP_ERROR_LOG("HISTOGRAM_PERCENTAGE failed, name=%{public}s", name);          \
+        }                                                                                \
     } while (0)
 
-#endif  // HISTOGRAM_PLUGIN_MACROS_H
+#endif // HISTOGRAM_PLUGIN_MACROS_H

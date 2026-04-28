@@ -34,6 +34,7 @@ namespace {
 constexpr int32_t SAMPLE_MIN = 0;
 constexpr int32_t SAMPLE_MAX = std::numeric_limits<int32_t>::max();
 constexpr size_t MIN_BUCKET_COUNT = 2;
+constexpr int32_t ENUM_BOUNDARY_MAX = 500;
 
 static std::atomic<IHistogramPlugin *> g_plugin { nullptr };
 
@@ -49,7 +50,7 @@ inline bool IsValidBooleanSample(int32_t sample)
 
 inline bool IsValidEnumSample(int32_t sample, int32_t boundary)
 {
-    return boundary > 0 && sample >= 0 && sample <= boundary;
+    return boundary > 0 && boundary <= ENUM_BOUNDARY_MAX && sample >= 0 && sample <= boundary;
 }
 
 inline bool IsValidBucketCount(size_t bucketCount)

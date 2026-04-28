@@ -49,7 +49,7 @@ inline bool IsValidBooleanSample(int32_t sample)
 
 inline bool IsValidEnumSample(int32_t sample, int32_t boundary)
 {
-    return boundary > 0 && sample >= 0 && sample < boundary;
+    return boundary > 0 && sample >= 0 && sample <= boundary;
 }
 
 inline bool IsValidBucketCount(size_t bucketCount)

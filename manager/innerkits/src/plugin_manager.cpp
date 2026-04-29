@@ -5,7 +5,7 @@
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,9 +24,17 @@ namespace OHOS {
 namespace histogram {
 
 namespace {
+/**
+ * Typedef for the plugin factory function.
+ * Matches the 'extern "C"' entry point in the shared library.
+ */
 using CreatePluginFunc = IHistogramPlugin *(*)();
 }
 
+/**
+ * Returns the global singleton instance.
+ * Thread-safe initialization guaranteed by C++11 magic statics.
+ */
 PluginManager &PluginManager::GetInstance()
 {
     static PluginManager instance;
@@ -35,16 +43,27 @@ PluginManager &PluginManager::GetInstance()
 
 PluginManager::PluginManager() = default;
 
+/**
+ * Destructor ensures all loaded library handles are closed 
+ * to prevent memory and file descriptor leaks.
+ */
 PluginManager::~PluginManager()
 {
     UnloadAllPlugins();
 }
 
+/**
+ * High-level API to load the default plugin if not already initialized.
+ */
 bool PluginManager::LazyLoadPlugin()
 {
     return LoadPluginIfNeeded(HISTOGRAM_PLUGIN_SO_PATH);
 }
 
+/**
+ * Optimized Check-Lock-Check pattern (DCLP) using atomic memory orders.
+ * Minimizes lock contention on hot paths.
+ */
 bool PluginManager::LoadPluginIfNeeded(const std::string &path)
 {
     if (pluginHasInit_.load(std::memory_order_acquire)) {
@@ -60,12 +79,20 @@ bool PluginManager::LoadPluginIfNeeded(const std::string &path)
     return LoadPluginLocked(path);
 }
 
+/**
+ * Directly loads a plugin from a specific path.
+ * Synchronized via mutex to ensure atomic load operation.
+ */
 bool PluginManager::LoadPlugin(const std::string &path)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return LoadPluginLocked(path);
 }
 
+/**
+ * Low-level dynamic loading implementation.
+ * Uses dlopen() to map the shared library into the process memory.
+ */
 bool PluginManager::LoadPluginLocked(const std::string &path)
 {
     if (path.empty()) {
@@ -88,6 +115,7 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
     pluginHandle_ = handle;
     pluginPath_ = path;
 
+    // Resolve the factory symbol and instantiate the plugin
     if (!ResolveAndCreatePluginLocked(path)) {
         AP_ERROR_LOG("plugin_manager: resolve plugin failed, path=%{public}s", path.c_str());
         (void)dlclose(handle);
@@ -100,6 +128,10 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
     return true;
 }
 
+/**
+ * Symbol resolution using dlsym().
+ * Locates the 'create_histogram_plugin' symbol and executes it.
+ */
 bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
 {
     if (pluginHandle_ == nullptr) {
@@ -125,11 +157,16 @@ bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
         return false;
     }
 
+    // Atomic store ensures visibility to other threads immediately
     plugin_.store(plugin, std::memory_order_release);
     pluginHasInit_.store(true, std::memory_order_release);
     return true;
 }
 
+/**
+ * Manual registration of a plugin instance.
+ * Useful for mocking or direct injection in unit tests.
+ */
 void PluginManager::RegisterPlugin(IHistogramPlugin *plugin)
 {
     if (plugin == nullptr) {
@@ -142,6 +179,9 @@ void PluginManager::RegisterPlugin(IHistogramPlugin *plugin)
     pluginHasInit_.store(true, std::memory_order_release);
 }
 
+/**
+ * Gracefully unloads the plugin and closes the shared library handle.
+ */
 bool PluginManager::UnloadPlugin()
 {
     void *handle = nullptr;
@@ -164,6 +204,8 @@ bool PluginManager::UnloadPlugin()
         return true;
     }
 
+    // Call dlclose() outside of the lock to avoid potential deadlocks 
+    // during library destructor execution.
     if (dlclose(handle) != 0) {
         AP_ERROR_LOG("plugin_manager: dlclose failed, path=%{public}s, err=%{public}s",
             path.c_str(), dlerror());
@@ -180,6 +222,9 @@ void PluginManager::UnloadAllPlugins()
     }
 }
 
+/**
+ * Clears internal state and resets pointers.
+ */
 void PluginManager::ResetPluginLocked()
 {
     plugin_.store(nullptr, std::memory_order_release);

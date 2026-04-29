@@ -44,7 +44,7 @@ PluginManager &PluginManager::GetInstance()
 PluginManager::PluginManager() = default;
 
 /**
- * Destructor ensures all loaded library handles are closed 
+ * Destructor ensures all loaded library handles are closed
  * to prevent memory and file descriptor leaks.
  */
 PluginManager::~PluginManager()
@@ -204,8 +204,6 @@ bool PluginManager::UnloadPlugin()
         return true;
     }
 
-    // Call dlclose() outside of the lock to avoid potential deadlocks 
-    // during library destructor execution.
     if (dlclose(handle) != 0) {
         AP_ERROR_LOG("plugin_manager: dlclose failed, path=%{public}s, err=%{public}s",
             path.c_str(), dlerror());

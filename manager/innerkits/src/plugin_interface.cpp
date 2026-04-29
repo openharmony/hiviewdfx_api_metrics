@@ -31,43 +31,130 @@ namespace OHOS {
 namespace histogram {
 namespace {
 
+/*
+ * Common numeric constraints.
+ *
+ * Histogram sample values are restricted to non-negative int32_t values.
+ * The upper bound is exclusive to avoid overflow in downstream bucket
+ * calculations and index derivation.
+ */
 constexpr int32_t SAMPLE_MIN = 0;
-constexpr int32_t SAMPLE_MAX = std::numeric_limits<int32_t>::max();
-constexpr size_t MIN_BUCKET_COUNT = 2;
+constexpr int32_t SAMPLE_UPPER_EXCLUSIVE =
+    std::numeric_limits<int32_t>::max();
+
+/*
+ * Enumeration histogram constraints.
+ *
+ * boundary must be in range (0, 500].
+ */
 constexpr int32_t ENUM_BOUNDARY_MAX = 500;
 
-static std::atomic<IHistogramPlugin *> g_plugin { nullptr };
+/*
+ * Count histogram bucket count constraints.
+ *
+ * Valid range: [2, 100].
+ */
+constexpr size_t MIN_BUCKET_COUNT = 2;
+constexpr size_t MAX_BUCKET_COUNT = 100;
 
+/*
+ * Cached plugin instance.
+ *
+ * After the first successful lazy load, subsequent calls use the cached
+ * pointer to avoid repeated manager lookup on hot paths.
+ */
+static std::atomic<IHistogramPlugin*> g_plugin { nullptr };
+
+/*
+ * Validates common sample values.
+ *
+ * Valid range: [0, int32_t::max()).
+ */
 inline bool IsValidSample(int32_t sample)
 {
-    return sample >= SAMPLE_MIN && sample < SAMPLE_MAX;
+    return sample >= SAMPLE_MIN &&
+           sample < SAMPLE_UPPER_EXCLUSIVE;
 }
 
+/*
+ * Validates boolean histogram samples.
+ *
+ * Supported values:
+ *   0 - false
+ *   1 - true
+ */
 inline bool IsValidBooleanSample(int32_t sample)
 {
     return sample == 0 || sample == 1;
 }
 
+/*
+ * Validates enumeration histogram parameters.
+ *
+ * boundary range:
+ *   (0, 500]
+ *
+ * sample range:
+ *   [0, boundary]
+ */
 inline bool IsValidEnumSample(int32_t sample, int32_t boundary)
 {
-    return boundary > 0 && boundary <= ENUM_BOUNDARY_MAX && sample >= 0 && sample <= boundary;
+    return boundary > 0 &&
+           boundary <= ENUM_BOUNDARY_MAX &&
+           sample >= 0 &&
+           sample <= boundary;
 }
 
+/*
+ * Validates bucket count for count histograms.
+ *
+ * Valid range:
+ *   [2, 100]
+ */
 inline bool IsValidBucketCount(size_t bucketCount)
 {
-    return bucketCount >= MIN_BUCKET_COUNT;
+    return bucketCount >= MIN_BUCKET_COUNT &&
+           bucketCount <= MAX_BUCKET_COUNT;
 }
 
-inline bool IsValidRange(int32_t min, int32_t max)
+/*
+ * Validates count histogram min/max range.
+ *
+ * min range:
+ *   [0, int32_t::max())
+ *
+ * max range:
+ *   (min, int32_t::max())
+ */
+inline bool IsValidCountRange(int32_t min, int32_t max)
 {
-    return min < max;
+    return min >= SAMPLE_MIN &&
+           min < SAMPLE_UPPER_EXCLUSIVE &&
+           max > min &&
+           max < SAMPLE_UPPER_EXCLUSIVE;
 }
 
-inline IHistogramPlugin *LoadPluginSlowPath()
+/*
+ * Returns true when metric name is invalid.
+ *
+ * Empty names are rejected to prevent anonymous histogram registration.
+ */
+inline bool IsInvalidName(const std::string &name)
+{
+    return name.empty();
+}
+
+/*
+ * Loads plugin instance on cache miss.
+ *
+ * This path is expected to run only during first use or initialization
+ * recovery scenarios.
+ */
+inline IHistogramPlugin* LoadPluginSlowPath()
 {
     PluginManager &manager = PluginManager::GetInstance();
 
-    IHistogramPlugin *plugin = manager.GetPlugin();
+    IHistogramPlugin* plugin = manager.GetPlugin();
     if (plugin != nullptr) {
         g_plugin.store(plugin, std::memory_order_release);
         return plugin;
@@ -85,9 +172,16 @@ inline IHistogramPlugin *LoadPluginSlowPath()
     return plugin;
 }
 
-inline IHistogramPlugin *GetPluginFast()
+/*
+ * Returns plugin instance using fast path cache.
+ *
+ * Hot path cost:
+ *   one atomic load and one null check.
+ */
+inline IHistogramPlugin* GetPluginFast()
 {
-    IHistogramPlugin *plugin = g_plugin.load(std::memory_order_acquire);
+    IHistogramPlugin* plugin =
+        g_plugin.load(std::memory_order_acquire);
 
     if (HISTOGRAM_LIKELY(plugin != nullptr)) {
         return plugin;
@@ -96,55 +190,82 @@ inline IHistogramPlugin *GetPluginFast()
     return LoadPluginSlowPath();
 }
 
-inline bool IsNullName(const std::string &name)
-{
-    return name.empty();
-}
-
 } // namespace
 
-int32_t PluginInterface::AddBooleanSample(const std::string &name, int32_t sample)
+/*
+ * Records a boolean histogram sample.
+ *
+ * sample values:
+ *   0 or 1
+ */
+int32_t PluginInterface::AddBooleanSample(
+    const std::string &name,
+    int32_t sample)
 {
-    if (HISTOGRAM_UNLIKELY(IsNullName(name))) {
-        AP_ERROR_LOG("AddBooleanSample: invalid name");
+    if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
     }
 
     if (HISTOGRAM_UNLIKELY(!IsValidBooleanSample(sample))) {
-        AP_ERROR_LOG("AddBooleanSample: invalid sample=%{public}d", sample);
         return -1;
     }
 
-    IHistogramPlugin *plugin = GetPluginFast();
+    IHistogramPlugin* plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
-        AP_ERROR_LOG("AddBooleanSample: plugin unavailable");
         return -1;
     }
 
     return plugin->AddBooleanSample(name.c_str(), sample);
 }
 
-int32_t PluginInterface::AddEnumSample(const std::string &name, int32_t sample, int32_t boundary)
+/*
+ * Records an enumeration histogram sample.
+ *
+ * boundary:
+ *   (0, 500]
+ *
+ * sample:
+ *   [0, boundary]
+ */
+int32_t PluginInterface::AddEnumSample(
+    const std::string &name,
+    int32_t sample,
+    int32_t boundary)
 {
-    if (HISTOGRAM_UNLIKELY(IsNullName(name))) {
-        AP_ERROR_LOG("AddEnumSample: invalid name");
+    if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
     }
 
     if (HISTOGRAM_UNLIKELY(!IsValidEnumSample(sample, boundary))) {
-        AP_ERROR_LOG("AddEnumSample: invalid sample=%{public}d, boundary=%{public}d",
-            sample, boundary);
         return -1;
     }
 
-    IHistogramPlugin *plugin = GetPluginFast();
+    IHistogramPlugin* plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
         return -1;
     }
 
-    return plugin->AddEnumSample(name.c_str(), sample, boundary);
+    return plugin->AddEnumSample(
+        name.c_str(),
+        sample,
+        boundary);
 }
 
+/*
+ * Records a count histogram sample.
+ *
+ * sample:
+ *   [0, int32_t::max())
+ *
+ * min:
+ *   [0, int32_t::max())
+ *
+ * max:
+ *   (min, int32_t::max())
+ *
+ * bucketCount:
+ *   [2, 100]
+ */
 int32_t PluginInterface::AddCountSample(
     const std::string &name,
     int32_t sample,
@@ -152,73 +273,89 @@ int32_t PluginInterface::AddCountSample(
     int32_t max,
     size_t bucketCount)
 {
-    if (HISTOGRAM_UNLIKELY(IsNullName(name))) {
-        AP_ERROR_LOG("AddCountSample: invalid name");
+    if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
     }
 
     if (HISTOGRAM_UNLIKELY(!IsValidSample(sample))) {
-        AP_ERROR_LOG("AddCountSample: invalid sample=%{public}d", sample);
         return -1;
     }
 
-    if (HISTOGRAM_UNLIKELY(!IsValidRange(min, max))) {
-        AP_ERROR_LOG("AddCountSample: invalid range min=%{public}d max=%{public}d",
-            min, max);
+    if (HISTOGRAM_UNLIKELY(!IsValidCountRange(min, max))) {
         return -1;
     }
 
     if (HISTOGRAM_UNLIKELY(!IsValidBucketCount(bucketCount))) {
-        AP_ERROR_LOG("AddCountSample: invalid bucketCount=%{public}zu", bucketCount);
         return -1;
     }
 
-    IHistogramPlugin *plugin = GetPluginFast();
+    IHistogramPlugin* plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
         return -1;
     }
 
-    return plugin->AddCountSample(name.c_str(), sample, min, max, bucketCount);
+    return plugin->AddCountSample(
+        name.c_str(),
+        sample,
+        min,
+        max,
+        bucketCount);
 }
 
-int32_t PluginInterface::AddTimeSample(const std::string &name, int32_t sample)
+/*
+ * Records a time histogram sample.
+ *
+ * sample:
+ *   [0, int32_t::max())
+ */
+int32_t PluginInterface::AddTimeSample(
+    const std::string &name,
+    int32_t sample)
 {
-    if (HISTOGRAM_UNLIKELY(IsNullName(name))) {
-        AP_ERROR_LOG("AddTimeSample: invalid name");
+    if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
     }
 
     if (HISTOGRAM_UNLIKELY(!IsValidSample(sample))) {
-        AP_ERROR_LOG("AddTimeSample: invalid sample=%{public}d", sample);
         return -1;
     }
 
-    IHistogramPlugin *plugin = GetPluginFast();
+    IHistogramPlugin* plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
         return -1;
     }
 
-    return plugin->AddTimeSample(name.c_str(), sample);
+    return plugin->AddTimeSample(
+        name.c_str(),
+        sample);
 }
 
-int32_t PluginInterface::AddPercentageSample(const std::string &name, int32_t sample)
+/*
+ * Records a percentage histogram sample.
+ *
+ * sample:
+ *   [0, 100]
+ */
+int32_t PluginInterface::AddPercentageSample(
+    const std::string &name,
+    int32_t sample)
 {
-    if (HISTOGRAM_UNLIKELY(IsNullName(name))) {
-        AP_ERROR_LOG("AddPercentageSample: invalid name");
+    if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
     }
 
     if (HISTOGRAM_UNLIKELY(sample < 0 || sample > 100)) {
-        AP_ERROR_LOG("AddPercentageSample: invalid sample=%{public}d", sample);
         return -1;
     }
 
-    IHistogramPlugin *plugin = GetPluginFast();
+    IHistogramPlugin* plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
         return -1;
     }
 
-    return plugin->AddPercentageSample(name.c_str(), sample);
+    return plugin->AddPercentageSample(
+        name.c_str(),
+        sample);
 }
 
 } // namespace histogram

@@ -24,14 +24,30 @@
 namespace OHOS {
 namespace histogram {
 
+/**
+ * Dynamic Library Path Configuration
+ * * Defines the path of the histogram plugin based on the CPU architecture.
+ * - 64-bit systems (__aarch64__, __x86_64__) use the /lib64/ directory.
+ * - 32-bit systems use the /lib/ directory.
+ */
 #if (defined(__aarch64__) || defined(__x86_64__))
 inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
 #else
 inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/platformsdk/libhistogram.z.so";
 #endif
 
+/**
+ * Plugin Entry Symbol
+ * * The factory function name used by dlsym() to instantiate the plugin.
+ * This must match the 'extern "C"' function exported in the shared object.
+ */
 inline const std::string CREATE_HISTOGRAM_PLUGIN = "create_histogram_plugin";
 
+/**
+ * Plugin Operational Status Codes
+ * * HISTOGRAM_PLUGIN_ENABLE:  Standard return code for successful operations.
+ * HISTOGRAM_PLUGIN_DISABLE: Return code when the plugin is unavailable or fails to load.
+ */
 static constexpr int32_t HISTOGRAM_PLUGIN_ENABLE = 0;
 static constexpr int32_t HISTOGRAM_PLUGIN_DISABLE = -1;
 

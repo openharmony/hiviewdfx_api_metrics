@@ -18,14 +18,18 @@
 #define HISTOGRAM_PLUGIN_MACROS_H
 
 #include "plugin_interface.h"
-#include "log_wrapper.h"
-
-#ifndef HISTOGRAM_UNLIKELY
-#define HISTOGRAM_UNLIKELY(x) __builtin_expect(!!(x), 0)
-#endif
 
 namespace OHOS::histogram {
 
+/**
+ * @brief Returns the process-wide singleton PluginInterface instance.
+ *
+ * This accessor is intentionally inline for zero-cost expansion on hot paths.
+ * The local static object is initialized once in a thread-safe manner
+ * according to modern C++ static initialization guarantees.
+ *
+ * @return Reference to singleton PluginInterface.
+ */
 inline PluginInterface &GetHistogramPlugin()
 {
     static PluginInterface instance;
@@ -34,46 +38,112 @@ inline PluginInterface &GetHistogramPlugin()
 
 } // namespace OHOS::histogram
 
-#define HISTOGRAM_BOOLEAN(name, sample)                                                   \
-    do {                                                                                  \
-        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddBooleanSample(name, sample); \
-        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                               \
-            AP_ERROR_LOG("HISTOGRAM_BOOLEAN failed, name=%{public}s", name);              \
-        }                                                                                 \
-    } while (0)
+/**
+ * @brief Record a boolean histogram sample.
+ *
+ * Valid sample values:
+ *   0 = false / failure / disabled / no
+ *   1 = true  / success / enabled  / yes
+ *
+ * Typical use cases:
+ *   - API success rate
+ *   - Feature switch enabled ratio
+ *   - Permission granted or denied
+ *
+ * @param name Histogram metric name.
+ * @param sample Must be 0 or 1.
+ */
+#define HISTOGRAM_BOOLEAN(name, sample) \
+    (void)OHOS::histogram::GetHistogramPlugin().AddBooleanSample(name, sample)
 
-#define HISTOGRAM_ENUMERATION(name, sample, boundary)                                    \
-    do {                                                                                 \
-        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddEnumSample(               \
-            name, sample, boundary);                                                     \
-        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                              \
-            AP_ERROR_LOG("HISTOGRAM_ENUMERATION failed, name=%{public}s", name);         \
-        }                                                                                \
-    } while (0)
+/**
+ * @brief Record an enumeration histogram sample.
+ *
+ * Valid input range:
+ *   sample   ∈ [0, boundary]
+ *   boundary > 0
+ *
+ * Typical use cases:
+ *   - Error codes mapped to small enums
+ *   - State machine final state
+ *   - User selected mode index
+ *
+ * Example:
+ *   boundary = 4 means legal values are 0,1,2,3,4
+ *
+ * @param name Histogram metric name.
+ * @param sample Enum value to record.
+ * @param boundary Maximum enum value (inclusive).
+ */
+#define HISTOGRAM_ENUMERATION(name, sample, boundary) \
+    (void)OHOS::histogram::GetHistogramPlugin().AddEnumSample(name, sample, boundary)
 
-#define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count)                    \
-    do {                                                                                 \
-        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddCountSample(              \
-            name, sample, min, max, bucket_count);                                       \
-        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                              \
-            AP_ERROR_LOG("HISTOGRAM_CUSTOM_COUNTS failed, name=%{public}s", name);       \
-        }                                                                                \
-    } while (0)
+/**
+ * @brief Record a custom count histogram sample.
+ *
+ * Valid input rules:
+ *   sample       ∈ [0, INT32_MAX)
+ *   min          >= 0
+ *   max          < INT32_MAX
+ *   min          < max
+ *   bucket_count >= 2
+ *   bucket_count < 100
+ *
+ * Typical use cases:
+ *   - Retry count
+ *   - Object count
+ *   - Cache item count
+ *   - Queue depth
+ *
+ * Example:
+ *   HISTOGRAM_CUSTOM_COUNTS("task.retry", 3, 1, 50, 20)
+ *
+ * @param name Histogram metric name.
+ * @param sample Sample value to record.
+ * @param min Lower bound of histogram domain.
+ * @param max Upper bound of histogram domain.
+ * @param bucket_count Bucket count, must be < 100.
+ */
+#define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
+    (void)OHOS::histogram::GetHistogramPlugin().AddCountSample(name, sample, min, max, bucket_count)
 
-#define HISTOGRAM_TIMES(name, sample)                                                    \
-    do {                                                                                 \
-        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddTimeSample(name, sample); \
-        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                              \
-            AP_ERROR_LOG("HISTOGRAM_TIMES failed, name=%{public}s", name);               \
-        }                                                                                \
-    } while (0)
+/**
+ * @brief Record a time histogram sample.
+ *
+ * Valid sample range:
+ *   sample ∈ [0, INT32_MAX)
+ *
+ * Unit recommendation:
+ *   milliseconds (ms)
+ *
+ * Typical use cases:
+ *   - API latency
+ *   - Page render time
+ *   - Startup duration
+ *   - IPC execution cost
+ *
+ * @param name Histogram metric name.
+ * @param sample Time cost value, normally milliseconds.
+ */
+#define HISTOGRAM_TIMES(name, sample) \
+    (void)OHOS::histogram::GetHistogramPlugin().AddTimeSample(name, sample)
 
-#define HISTOGRAM_PERCENTAGE(name, sample)                                               \
-    do {                                                                                 \
-        int32_t _ret = OHOS::histogram::GetHistogramPlugin().AddPercentageSample(name, sample); \
-        if (HISTOGRAM_UNLIKELY(_ret != 0)) {                                              \
-            AP_ERROR_LOG("HISTOGRAM_PERCENTAGE failed, name=%{public}s", name);          \
-        }                                                                                \
-    } while (0)
+/**
+ * @brief Record a percentage histogram sample.
+ *
+ * Valid sample range:
+ *   sample ∈ [0, 100]
+ *
+ * Typical use cases:
+ *   - CPU utilization
+ *   - Success percentage
+ *   - Download progress
+ *   - Cache hit ratio
+ *
+ * @param name Histogram metric name.
+ * @param sample Percentage value from 0 to 100 inclusive.
+ */
+#define HISTOGRAM_PERCENTAGE(name, sample) \
+    (void)OHOS::histogram::GetHistogramPlugin().AddPercentageSample(name, sample)
 
 #endif // HISTOGRAM_PLUGIN_MACROS_H

@@ -18,6 +18,8 @@
 
 #include <atomic>
 #include <limits>
+#include <thread>
+#include <utility>
 
 #ifndef HISTOGRAM_LIKELY
 #define HISTOGRAM_LIKELY(x) __builtin_expect(!!(x), 1)
@@ -39,8 +41,7 @@ namespace {
  * calculations and index derivation.
  */
 constexpr int32_t SAMPLE_MIN = 0;
-constexpr int32_t SAMPLE_UPPER_EXCLUSIVE =
-    std::numeric_limits<int32_t>::max();
+constexpr int32_t SAMPLE_UPPER_EXCLUSIVE = std::numeric_limits<int32_t>::max();
 
 /*
  * Enumeration histogram constraints.
@@ -63,7 +64,8 @@ constexpr size_t MAX_BUCKET_COUNT = 100;
  * After the first successful lazy load, subsequent calls use the cached
  * pointer to avoid repeated manager lookup on hot paths.
  */
-static std::atomic<IHistogramPlugin*> g_plugin { nullptr };
+static std::atomic<IHistogramPlugin *> g_plugin{nullptr};
+static std::atomic<bool> g_plugin_loading{false};
 
 /*
  * Validates common sample values.
@@ -72,8 +74,7 @@ static std::atomic<IHistogramPlugin*> g_plugin { nullptr };
  */
 inline bool IsValidSample(int32_t sample)
 {
-    return sample >= SAMPLE_MIN &&
-           sample < SAMPLE_UPPER_EXCLUSIVE;
+    return sample >= SAMPLE_MIN && sample < SAMPLE_UPPER_EXCLUSIVE;
 }
 
 /*
@@ -99,10 +100,7 @@ inline bool IsValidBooleanSample(int32_t sample)
  */
 inline bool IsValidEnumSample(int32_t sample, int32_t boundary)
 {
-    return boundary > 0 &&
-           boundary <= ENUM_BOUNDARY_MAX &&
-           sample >= 0 &&
-           sample <= boundary;
+    return boundary > 0 && boundary <= ENUM_BOUNDARY_MAX && sample >= 0 && sample <= boundary;
 }
 
 /*
@@ -113,8 +111,7 @@ inline bool IsValidEnumSample(int32_t sample, int32_t boundary)
  */
 inline bool IsValidBucketCount(size_t bucketCount)
 {
-    return bucketCount >= MIN_BUCKET_COUNT &&
-           bucketCount <= MAX_BUCKET_COUNT;
+    return bucketCount >= MIN_BUCKET_COUNT && bucketCount <= MAX_BUCKET_COUNT;
 }
 
 /*
@@ -128,10 +125,7 @@ inline bool IsValidBucketCount(size_t bucketCount)
  */
 inline bool IsValidCountRange(int32_t min, int32_t max)
 {
-    return min >= SAMPLE_MIN &&
-           min < SAMPLE_UPPER_EXCLUSIVE &&
-           max > min &&
-           max < SAMPLE_UPPER_EXCLUSIVE;
+    return min >= SAMPLE_MIN && min < SAMPLE_UPPER_EXCLUSIVE && max > min && max < SAMPLE_UPPER_EXCLUSIVE;
 }
 
 /*
@@ -150,11 +144,11 @@ inline bool IsInvalidName(const std::string &name)
  * This path is expected to run only during first use or initialization
  * recovery scenarios.
  */
-inline IHistogramPlugin* LoadPluginSlowPath()
+inline IHistogramPlugin *LoadPluginSlowPath()
 {
     PluginManager &manager = PluginManager::GetInstance();
 
-    IHistogramPlugin* plugin = manager.GetPlugin();
+    IHistogramPlugin *plugin = manager.GetPlugin();
     if (plugin != nullptr) {
         g_plugin.store(plugin, std::memory_order_release);
         return plugin;
@@ -173,24 +167,54 @@ inline IHistogramPlugin* LoadPluginSlowPath()
 }
 
 /*
+ * Loads plugin instance Async.
+ *
+ * This async path is to dlopen so
+ */
+template <typename Task>
+inline bool StartLoadPluginAsync(Task &&task)
+{
+    bool expected = false;
+    if (!g_plugin_loading.compare_exchange_strong(expected, true, std::memory_order_acq_rel,
+                                                  std::memory_order_acquire)) {
+        return false;
+    }
+
+    std::thread([task = std::forward<Task>(task)]() mutable {
+        struct Guard {
+            ~Guard()
+            {
+                g_plugin_loading.store(false, std::memory_order_release);
+            }
+        } guard;
+
+        IHistogramPlugin *plugin = LoadPluginSlowPath();
+        if (plugin != nullptr) {
+            task(plugin);
+        }
+    }).detach();
+
+    return true;
+}
+
+/*
  * Returns plugin instance using fast path cache.
  *
  * Hot path cost:
  *   one atomic load and one null check.
  */
-inline IHistogramPlugin* GetPluginFast()
+inline IHistogramPlugin *GetPluginFast()
 {
-    IHistogramPlugin* plugin =
-        g_plugin.load(std::memory_order_acquire);
+    IHistogramPlugin *plugin = g_plugin.load(std::memory_order_acquire);
 
     if (HISTOGRAM_LIKELY(plugin != nullptr)) {
         return plugin;
     }
 
-    return LoadPluginSlowPath();
+    return nullptr;
 }
 
-} // namespace
+}  // namespace
 
 /*
  * Records a boolean histogram sample.
@@ -198,9 +222,7 @@ inline IHistogramPlugin* GetPluginFast()
  * sample values:
  *   0 or 1
  */
-int32_t PluginInterface::AddBooleanSample(
-    const std::string &name,
-    int32_t sample)
+int32_t PluginInterface::AddBooleanSample(const std::string &name, int32_t sample)
 {
     if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
@@ -210,8 +232,12 @@ int32_t PluginInterface::AddBooleanSample(
         return -1;
     }
 
-    IHistogramPlugin* plugin = GetPluginFast();
+    IHistogramPlugin *plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
+        if (StartLoadPluginAsync(
+            [name, sample](IHistogramPlugin *plugin) { plugin->AddBooleanSample(name.c_str(), sample); })) {
+            return 0;
+        }
         return -1;
     }
 
@@ -227,10 +253,7 @@ int32_t PluginInterface::AddBooleanSample(
  * sample:
  *   [0, boundary]
  */
-int32_t PluginInterface::AddEnumSample(
-    const std::string &name,
-    int32_t sample,
-    int32_t boundary)
+int32_t PluginInterface::AddEnumSample(const std::string &name, int32_t sample, int32_t boundary)
 {
     if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
@@ -240,15 +263,17 @@ int32_t PluginInterface::AddEnumSample(
         return -1;
     }
 
-    IHistogramPlugin* plugin = GetPluginFast();
+    IHistogramPlugin *plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
+        if (StartLoadPluginAsync([name, sample, boundary](IHistogramPlugin *plugin) {
+                plugin->AddEnumSample(name.c_str(), sample, boundary);
+            })) {
+            return 0;
+        }
         return -1;
     }
 
-    return plugin->AddEnumSample(
-        name.c_str(),
-        sample,
-        boundary);
+    return plugin->AddEnumSample(name.c_str(), sample, boundary);
 }
 
 /*
@@ -266,12 +291,8 @@ int32_t PluginInterface::AddEnumSample(
  * bucketCount:
  *   [2, 100]
  */
-int32_t PluginInterface::AddCountSample(
-    const std::string &name,
-    int32_t sample,
-    int32_t min,
-    int32_t max,
-    size_t bucketCount)
+int32_t PluginInterface::AddCountSample(const std::string &name, int32_t sample, int32_t min, int32_t max,
+                                        size_t bucketCount)
 {
     if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
@@ -289,17 +310,17 @@ int32_t PluginInterface::AddCountSample(
         return -1;
     }
 
-    IHistogramPlugin* plugin = GetPluginFast();
+    IHistogramPlugin *plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
+        if (StartLoadPluginAsync([name, sample, min, max, bucketCount](IHistogramPlugin *plugin) {
+                plugin->AddCountSample(name.c_str(), sample, min, max, bucketCount);
+            })) {
+            return 0;
+        }
         return -1;
     }
 
-    return plugin->AddCountSample(
-        name.c_str(),
-        sample,
-        min,
-        max,
-        bucketCount);
+    return plugin->AddCountSample(name.c_str(), sample, min, max, bucketCount);
 }
 
 /*
@@ -308,9 +329,7 @@ int32_t PluginInterface::AddCountSample(
  * sample:
  *   [0, int32_t::max())
  */
-int32_t PluginInterface::AddTimeSample(
-    const std::string &name,
-    int32_t sample)
+int32_t PluginInterface::AddTimeSample(const std::string &name, int32_t sample)
 {
     if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
@@ -320,14 +339,16 @@ int32_t PluginInterface::AddTimeSample(
         return -1;
     }
 
-    IHistogramPlugin* plugin = GetPluginFast();
+    IHistogramPlugin *plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
+        if (StartLoadPluginAsync(
+            [name, sample](IHistogramPlugin *plugin) { plugin->AddTimeSample(name.c_str(), sample); })) {
+            return 0;
+        }
         return -1;
     }
 
-    return plugin->AddTimeSample(
-        name.c_str(),
-        sample);
+    return plugin->AddTimeSample(name.c_str(), sample);
 }
 
 /*
@@ -336,9 +357,7 @@ int32_t PluginInterface::AddTimeSample(
  * sample:
  *   [0, 100]
  */
-int32_t PluginInterface::AddPercentageSample(
-    const std::string &name,
-    int32_t sample)
+int32_t PluginInterface::AddPercentageSample(const std::string &name, int32_t sample)
 {
     if (HISTOGRAM_UNLIKELY(IsInvalidName(name))) {
         return -1;
@@ -348,15 +367,19 @@ int32_t PluginInterface::AddPercentageSample(
         return -1;
     }
 
-    IHistogramPlugin* plugin = GetPluginFast();
+    IHistogramPlugin *plugin = GetPluginFast();
     if (HISTOGRAM_UNLIKELY(plugin == nullptr)) {
+        if (StartLoadPluginAsync(
+            [name, sample](IHistogramPlugin *plugin) {
+                plugin->AddPercentageSample(name.c_str(), sample);
+            })) {
+            return 0;
+        }
         return -1;
     }
 
-    return plugin->AddPercentageSample(
-        name.c_str(),
-        sample);
+    return plugin->AddPercentageSample(name.c_str(), sample);
 }
 
-} // namespace histogram
-} // namespace OHOS
+}  // namespace histogram
+}  // namespace OHOS

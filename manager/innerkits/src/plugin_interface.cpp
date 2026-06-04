@@ -64,8 +64,8 @@ constexpr size_t MAX_BUCKET_COUNT = 100;
  * After the first successful lazy load, subsequent calls use the cached
  * pointer to avoid repeated manager lookup on hot paths.
  */
-static std::atomic<IHistogramPlugin *> g_plugin{nullptr};
-static std::atomic<bool> g_plugin_loading{false};
+static std::atomic<IHistogramPlugin *> g_plugin { nullptr };
+static std::atomic<bool> g_pluginLoading { false };
 
 /*
  * Validates common sample values.
@@ -147,22 +147,18 @@ inline bool IsInvalidName(const std::string &name)
 inline IHistogramPlugin *LoadPluginSlowPath()
 {
     PluginManager &manager = PluginManager::GetInstance();
-
     IHistogramPlugin *plugin = manager.GetPlugin();
     if (plugin != nullptr) {
         g_plugin.store(plugin, std::memory_order_release);
         return plugin;
     }
-
     if (HISTOGRAM_UNLIKELY(!manager.LazyLoadPlugin())) {
         return nullptr;
     }
-
     plugin = manager.GetPlugin();
     if (plugin != nullptr) {
         g_plugin.store(plugin, std::memory_order_release);
     }
-
     return plugin;
 }
 
@@ -172,25 +168,28 @@ inline IHistogramPlugin *LoadPluginSlowPath()
  * This async path is to dlopen so
  */
 template <typename Task>
-inline bool StartLoadPluginAsync(Task &&task)
+inline bool StartLoadPluginAsync(Task &&loadTask)
 {
     bool expected = false;
-    if (!g_plugin_loading.compare_exchange_strong(expected, true, std::memory_order_acq_rel,
-                                                  std::memory_order_acquire)) {
+    if (!g_pluginLoading.compare_exchange_strong(
+        expected,
+        true,
+        std::memory_order_acq_rel,
+        std::memory_order_acquire)) {
         return false;
     }
 
-    std::thread([task = std::forward<Task>(task)]() mutable {
-        struct Guard {
-            ~Guard()
+    std::thread([asyncTask = std::forward<Task>(loadTask)]() mutable {
+        struct LoadingGuard {
+            ~LoadingGuard()
             {
-                g_plugin_loading.store(false, std::memory_order_release);
+                g_pluginLoading.store(false, std::memory_order_release);
             }
-        } guard;
+        } loadingGuard;
 
         IHistogramPlugin *plugin = LoadPluginSlowPath();
         if (plugin != nullptr) {
-            task(plugin);
+            asyncTask(plugin);
         }
     }).detach();
 

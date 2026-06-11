@@ -32,6 +32,7 @@ ohos_shared_library("histogrammanager") {
 
   external_deps = [
     "hilog:libhilog",
+    "ffrt:libffrt"
   ]
 
   part_name = "api_metrics"

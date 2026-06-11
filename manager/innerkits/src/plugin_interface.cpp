@@ -15,10 +15,10 @@
  */
 
 #include "plugin_interface.h"
+#include "ffrt_inner.h"
 
 #include <atomic>
 #include <limits>
-#include <thread>
 #include <utility>
 
 #ifndef HISTOGRAM_LIKELY
@@ -41,7 +41,8 @@ namespace {
  * calculations and index derivation.
  */
 constexpr int32_t SAMPLE_MIN = 0;
-constexpr int32_t SAMPLE_UPPER_EXCLUSIVE = std::numeric_limits<int32_t>::max();
+constexpr int32_t SAMPLE_UPPER_EXCLUSIVE =
+    std::numeric_limits<int32_t>::max();
 
 /*
  * Enumeration histogram constraints.
@@ -74,7 +75,8 @@ static std::atomic<bool> g_pluginLoading { false };
  */
 inline bool IsValidSample(int32_t sample)
 {
-    return sample >= SAMPLE_MIN && sample < SAMPLE_UPPER_EXCLUSIVE;
+    return sample >= SAMPLE_MIN &&
+           sample < SAMPLE_UPPER_EXCLUSIVE;
 }
 
 /*
@@ -100,7 +102,10 @@ inline bool IsValidBooleanSample(int32_t sample)
  */
 inline bool IsValidEnumSample(int32_t sample, int32_t boundary)
 {
-    return boundary > 0 && boundary <= ENUM_BOUNDARY_MAX && sample >= 0 && sample <= boundary;
+    return boundary > 0 &&
+           boundary <= ENUM_BOUNDARY_MAX &&
+           sample >= 0 &&
+           sample <= boundary;
 }
 
 /*
@@ -111,7 +116,8 @@ inline bool IsValidEnumSample(int32_t sample, int32_t boundary)
  */
 inline bool IsValidBucketCount(size_t bucketCount)
 {
-    return bucketCount >= MIN_BUCKET_COUNT && bucketCount <= MAX_BUCKET_COUNT;
+    return bucketCount >= MIN_BUCKET_COUNT &&
+           bucketCount <= MAX_BUCKET_COUNT;
 }
 
 /*
@@ -125,7 +131,10 @@ inline bool IsValidBucketCount(size_t bucketCount)
  */
 inline bool IsValidCountRange(int32_t min, int32_t max)
 {
-    return min >= SAMPLE_MIN && min < SAMPLE_UPPER_EXCLUSIVE && max > min && max < SAMPLE_UPPER_EXCLUSIVE;
+    return min >= SAMPLE_MIN &&
+           min < SAMPLE_UPPER_EXCLUSIVE &&
+           max > min &&
+           max < SAMPLE_UPPER_EXCLUSIVE;
 }
 
 /*
@@ -179,7 +188,7 @@ inline bool StartLoadPluginAsync(Task &&loadTask)
         return false;
     }
 
-    std::thread([asyncTask = std::forward<Task>(loadTask)]() mutable {
+    ffrt::submit([asyncTask = std::forward<Task>(loadTask)]() mutable {
         struct LoadingGuard {
             ~LoadingGuard()
             {
@@ -191,7 +200,7 @@ inline bool StartLoadPluginAsync(Task &&loadTask)
         if (plugin != nullptr) {
             asyncTask(plugin);
         }
-    }).detach();
+    });
 
     return true;
 }
@@ -382,3 +391,4 @@ int32_t PluginInterface::AddPercentageSample(const std::string &name, int32_t sa
 
 }  // namespace histogram
 }  // namespace OHOS
+

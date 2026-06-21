@@ -15,7 +15,7 @@
  */
 
 #include "plugin_interface.h"
-#include "ffrt_inner.h"
+
 
 #include <atomic>
 #include <limits>
@@ -188,7 +188,7 @@ inline bool StartLoadPluginAsync(Task &&loadTask)
         return false;
     }
 
-    ffrt::submit([asyncTask = std::forward<Task>(loadTask)]() mutable {
+    std::thread([asyncTask = std::forward<Task>(loadTask)]() mutable {
         struct LoadingGuard {
             ~LoadingGuard()
             {
@@ -200,7 +200,7 @@ inline bool StartLoadPluginAsync(Task &&loadTask)
         if (plugin != nullptr) {
             asyncTask(plugin);
         }
-    });
+    }).detach();
 
     return true;
 }

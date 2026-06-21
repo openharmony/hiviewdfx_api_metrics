@@ -16,7 +16,7 @@
 
 #include "plugin_interface.h"
 
-
+#include <thread>
 #include <atomic>
 #include <limits>
 #include <utility>

@@ -22,7 +22,7 @@
 #undef LOG_DOMAIN
 #undef LOG_TAG
 
-#define LOG_DOMAIN 0xD005302
+#define LOG_DOMAIN 0xD002D34
 #define LOG_TAG "histogramClient"
 
 #define AP_DEBUG_LOG(fmt, ...) HILOG_DEBUG(LOG_CORE, fmt, ##__VA_ARGS__)

@@ -46,7 +46,7 @@ static bool GetInt32Arg(napi_env env, napi_value value, int32_t &out)
 {
     napi_status status = napi_get_value_int32(env, value, &out);
     if (status != napi_ok) {
-        AP_ERROR_LOG("Failed to parse int32 argument");
+        HISTOGRAM_ERROR_LOG("Failed to parse int32 argument");
         return false;
     }
     return true;
@@ -75,7 +75,7 @@ static napi_value AddBoolean(napi_env env, napi_callback_info info)
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
     if (argc < ARGC_SINGLE) {
-        AP_ERROR_LOG("AddBoolean requires %{public}zu argument: sample", ARGC_SINGLE);
+        HISTOGRAM_ERROR_LOG("AddBoolean requires %{public}zu argument: sample", ARGC_SINGLE);
         return CreateUndefined(env);
     }
 
@@ -84,7 +84,7 @@ static napi_value AddBoolean(napi_env env, napi_callback_info info)
         return CreateUndefined(env);
     }
 
-    AP_INFO_LOG("NAPI AddBoolean called, sample=%{public}d", sample);
+    HISTOGRAM_INFO_LOG("NAPI AddBoolean called, sample=%{public}d", sample);
 
     HISTOGRAM_BOOLEAN("accountkit.createAcount.is_success", sample);
 
@@ -100,7 +100,7 @@ static napi_value AddEnumeration(napi_env env, napi_callback_info info)
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
     if (argc < ARGC_ENUMERATION) {
-        AP_ERROR_LOG("AddEnumeration requires %{public}zu arguments: sample, boundary", ARGC_ENUMERATION);
+        HISTOGRAM_ERROR_LOG("AddEnumeration requires %{public}zu arguments: sample, boundary", ARGC_ENUMERATION);
         return CreateUndefined(env);
     }
 
@@ -111,7 +111,7 @@ static napi_value AddEnumeration(napi_env env, napi_callback_info info)
         return CreateUndefined(env);
     }
 
-    AP_INFO_LOG("NAPI AddEnumeration called, sample=%{public}d, boundary=%{public}d", sample, boundary);
+    HISTOGRAM_INFO_LOG("NAPI AddEnumeration called, sample=%{public}d, boundary=%{public}d", sample, boundary);
 
     HISTOGRAM_ENUMERATION("accountkit.createAcount.error_code", sample, boundary);
 
@@ -141,7 +141,7 @@ static napi_value AddCustomCounts(napi_env env, napi_callback_info info)
         return CreateUndefined(env);
     }
 
-    AP_INFO_LOG("NAPI AddCustomCounts called, "
+    HISTOGRAM_INFO_LOG("NAPI AddCustomCounts called, "
         "sample=%{public}d, min=%{public}d, max=%{public}d, bucketCount=%{public}d",
         sample, min, max, bucketCount);
 
@@ -159,7 +159,7 @@ static napi_value AddTimes(napi_env env, napi_callback_info info)
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
     if (argc < ARGC_SINGLE) {
-        AP_ERROR_LOG("AddTimes requires %{public}zu argument: sample", ARGC_SINGLE);
+        HISTOGRAM_ERROR_LOG("AddTimes requires %{public}zu argument: sample", ARGC_SINGLE);
         return CreateUndefined(env);
     }
 
@@ -168,7 +168,7 @@ static napi_value AddTimes(napi_env env, napi_callback_info info)
         return CreateUndefined(env);
     }
 
-    AP_INFO_LOG("NAPI AddTimes called, sample=%{public}d", sample);
+    HISTOGRAM_INFO_LOG("NAPI AddTimes called, sample=%{public}d", sample);
 
     HISTOGRAM_TIMES("accountkit.createAcount.time", sample);
 
@@ -184,7 +184,7 @@ static napi_value AddPercentage(napi_env env, napi_callback_info info)
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
     if (argc < ARGC_SINGLE) {
-        AP_ERROR_LOG("AddPercentage requires %{public}zu argument: sample", ARGC_SINGLE);
+        HISTOGRAM_ERROR_LOG("AddPercentage requires %{public}zu argument: sample", ARGC_SINGLE);
         return CreateUndefined(env);
     }
 
@@ -193,7 +193,7 @@ static napi_value AddPercentage(napi_env env, napi_callback_info info)
         return CreateUndefined(env);
     }
 
-    AP_INFO_LOG("NAPI AddPercentage called, sample=%{public}d", sample);
+    HISTOGRAM_INFO_LOG("NAPI AddPercentage called, sample=%{public}d", sample);
 
     HISTOGRAM_PERCENTAGE("accountkit.createAcount.success_percentage", sample);
 
@@ -204,7 +204,7 @@ static napi_value AddPercentage(napi_env env, napi_callback_info info)
 EXTERN_C_START
 static napi_value NapiInit(napi_env env, napi_value exports)
 {
-    AP_INFO_LOG("Histogram NAPI module init");
+    HISTOGRAM_INFO_LOG("Histogram NAPI module init");
 
     napi_property_descriptor descriptors[] = {
         DECLARE_NAPI_FUNCTION("AddBoolean", AddBoolean),

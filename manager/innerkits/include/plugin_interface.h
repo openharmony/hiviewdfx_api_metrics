@@ -17,10 +17,6 @@
 #ifndef HISTOGRAM_PLUGIN_INTERFACE_H
 #define HISTOGRAM_PLUGIN_INTERFACE_H
 
-#include "ihistogram_plugin.h"
-#include "plugin_manager.h"
-#include "log_wrapper.h"
-
 #include <cstdint>
 #include <string>
 

@@ -14,20 +14,31 @@
  * limitations under the License.
  */
 
-#ifndef HISTOGRAM_LOG_WRAPPER_H
-#define HISTOGRAM_LOG_WRAPPER_H
+#ifndef HIVIEWDFX_API_METRICS_HISTOGRAM_LOG_WRAPPER_H
+#define HIVIEWDFX_API_METRICS_HISTOGRAM_LOG_WRAPPER_H
 
 #include "hilog/log.h"
 
-#undef LOG_DOMAIN
-#undef LOG_TAG
+namespace OHOS::histogram {
 
-#define LOG_DOMAIN 0xD002D34
-#define LOG_TAG "histogramClient"
+inline constexpr OHOS::HiviewDFX::HiLogLabel HISTOGRAM_LOG_LABEL = {
+    LOG_CORE,
+    0xD002D34,
+    "HistogramPlugin"
+};
 
-#define AP_DEBUG_LOG(fmt, ...) HILOG_DEBUG(LOG_CORE, fmt, ##__VA_ARGS__)
-#define AP_INFO_LOG(fmt, ...) HILOG_INFO(LOG_CORE, fmt, ##__VA_ARGS__)
-#define AP_WARN_LOG(fmt, ...) HILOG_WARN(LOG_CORE, fmt, ##__VA_ARGS__)
-#define AP_ERROR_LOG(fmt, ...) HILOG_ERROR(LOG_CORE, fmt, ##__VA_ARGS__)
+} // namespace OHOS::histogram
+
+#define HISTOGRAM_DEBUG_LOG(fmt, ...) \
+    OHOS::HiviewDFX::HiLog::Debug(OHOS::histogram::HISTOGRAM_LOG_LABEL, fmt, ##__VA_ARGS__)
+
+#define HISTOGRAM_INFO_LOG(fmt, ...) \
+    OHOS::HiviewDFX::HiLog::Info(OHOS::histogram::HISTOGRAM_LOG_LABEL, fmt, ##__VA_ARGS__)
+
+#define HISTOGRAM_WARN_LOG(fmt, ...) \
+    OHOS::HiviewDFX::HiLog::Warn(OHOS::histogram::HISTOGRAM_LOG_LABEL, fmt, ##__VA_ARGS__)
+
+#define HISTOGRAM_ERROR_LOG(fmt, ...) \
+    OHOS::HiviewDFX::HiLog::Error(OHOS::histogram::HISTOGRAM_LOG_LABEL, fmt, ##__VA_ARGS__)
 
 #endif

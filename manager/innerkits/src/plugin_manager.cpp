@@ -47,10 +47,7 @@ PluginManager::PluginManager() = default;
  * Destructor ensures all loaded library handles are closed
  * to prevent memory and file descriptor leaks.
  */
-PluginManager::~PluginManager()
-{
-    UnloadAllPlugins();
-}
+PluginManager::~PluginManager() = default;
 
 /**
  * High-level API to load the default plugin if not already initialized.

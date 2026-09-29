@@ -15,8 +15,8 @@ import("hiviewdfx.gni")
 
 config("manager_config") {
   visibility = [ ":*" ]
-  include_dirs = [ 
-    "manager/innerkits/include"
+  include_dirs = [
+    "manager/innerkits/include",
   ]
 }
 
@@ -25,26 +25,36 @@ ohos_shared_library("histogrammanager") {
 
   sources = [
     "manager/innerkits/src/plugin_manager.cpp",
-    "manager/innerkits/src/plugin_interface.cpp"
+    "manager/innerkits/src/plugin_interface.cpp",
   ]
 
   deps = []
 
   external_deps = [
-    "hilog:libhilog"
+    "hilog:libhilog",
   ]
 
   part_name = "api_metrics"
   subsystem_name = "hiviewdfx"
 
-  
+  histogram_version_script =
+      rebase_path("histogrammanager.map", root_build_dir)
+
+  ldflags = [
+    "-Wl,--version-script=" + histogram_version_script,
+  ]
+
+  inputs = [
+    "histogrammanager.map",
+  ]
+
   branch_protector_ret = "pac_ret"
- 
+
   sanitize = {
-  cfi = true
-  cfi_cross_dso = true
-  debug = false
+    cfi = true
+    cfi_cross_dso = true
+    debug = false
   }
- 
+
   stack_protector_ret = true
 }

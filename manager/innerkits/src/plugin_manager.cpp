@@ -96,7 +96,7 @@ bool PluginManager::LoadPlugin(const std::string &path)
 bool PluginManager::LoadPluginLocked(const std::string &path)
 {
     if (path.empty()) {
-        AP_ERROR_LOG("plugin_manager: plugin path is empty");
+        HISTOGRAM_ERROR_LOG("plugin_manager: plugin path is empty");
         return false;
     }
 
@@ -107,7 +107,7 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
     (void)dlerror();
     void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (handle == nullptr) {
-        AP_ERROR_LOG("plugin_manager: dlopen failed, path=%{public}s, err=%{public}s",
+        HISTOGRAM_ERROR_LOG("plugin_manager: dlopen failed, path=%{public}s, err=%{public}s",
             path.c_str(), dlerror());
         return false;
     }
@@ -117,14 +117,14 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
 
     // Resolve the factory symbol and instantiate the plugin
     if (!ResolveAndCreatePluginLocked(path)) {
-        AP_ERROR_LOG("plugin_manager: resolve plugin failed, path=%{public}s", path.c_str());
+        HISTOGRAM_ERROR_LOG("plugin_manager: resolve plugin failed, path=%{public}s", path.c_str());
         (void)dlclose(handle);
         pluginHandle_ = nullptr;
         pluginPath_.clear();
         return false;
     }
 
-    AP_DEBUG_LOG("plugin_manager: plugin loaded successfully, path=%{public}s", path.c_str());
+    HISTOGRAM_DEBUG_LOG("plugin_manager: plugin loaded successfully, path=%{public}s", path.c_str());
     return true;
 }
 
@@ -135,7 +135,7 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
 bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
 {
     if (pluginHandle_ == nullptr) {
-        AP_ERROR_LOG("plugin_manager: plugin handle is nullptr, path=%{public}s", path.c_str());
+        HISTOGRAM_ERROR_LOG("plugin_manager: plugin handle is nullptr, path=%{public}s", path.c_str());
         return false;
     }
 
@@ -143,7 +143,7 @@ bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
         dlsym(pluginHandle_, CREATE_HISTOGRAM_PLUGIN.c_str()));
     if (createFunc == nullptr) {
         const char *err = dlerror();
-        AP_ERROR_LOG("plugin_manager: dlsym %{public}s failed, err=%{public}s",
+        HISTOGRAM_ERROR_LOG("plugin_manager: dlsym %{public}s failed, err=%{public}s",
             CREATE_HISTOGRAM_PLUGIN.c_str(),
             err == nullptr ? "unknown error" : err);
         ResetPluginLocked();
@@ -152,7 +152,7 @@ bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
 
     IHistogramPlugin *plugin = createFunc();
     if (plugin == nullptr) {
-        AP_ERROR_LOG("plugin_manager: create plugin returned nullptr");
+        HISTOGRAM_ERROR_LOG("plugin_manager: create plugin returned nullptr");
         ResetPluginLocked();
         return false;
     }
@@ -170,7 +170,7 @@ bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
 void PluginManager::RegisterPlugin(IHistogramPlugin *plugin)
 {
     if (plugin == nullptr) {
-        AP_ERROR_LOG("plugin_manager: RegisterPlugin failed, plugin is nullptr");
+        HISTOGRAM_ERROR_LOG("plugin_manager: RegisterPlugin failed, plugin is nullptr");
         return;
     }
 
@@ -205,7 +205,7 @@ bool PluginManager::UnloadPlugin()
     }
 
     if (dlclose(handle) != 0) {
-        AP_ERROR_LOG("plugin_manager: dlclose failed, path=%{public}s, err=%{public}s",
+        HISTOGRAM_ERROR_LOG("plugin_manager: dlclose failed, path=%{public}s, err=%{public}s",
             path.c_str(), dlerror());
         return false;
     }
@@ -216,7 +216,7 @@ bool PluginManager::UnloadPlugin()
 void PluginManager::UnloadAllPlugins()
 {
     if (!UnloadPlugin()) {
-        AP_ERROR_LOG("plugin_manager: UnloadAllPlugins failed");
+        HISTOGRAM_ERROR_LOG("plugin_manager: UnloadAllPlugins failed");
     }
 }
 

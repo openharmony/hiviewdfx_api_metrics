@@ -15,6 +15,8 @@
  */
 
 #include "plugin_interface.h"
+#include "ihistogram_plugin.h"
+#include "plugin_manager.h"
 
 #include <thread>
 #include <atomic>
@@ -391,4 +393,3 @@ int32_t PluginInterface::AddPercentageSample(const std::string &name, int32_t sa
 
 }  // namespace histogram
 }  // namespace OHOS
-

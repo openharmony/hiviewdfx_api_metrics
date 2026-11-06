@@ -105,7 +105,7 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
     }
 
     (void)dlerror();
-    void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+    void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
     if (handle == nullptr) {
         HISTOGRAM_ERROR_LOG("plugin_manager: dlopen failed, path=%{public}s, err=%{public}s",
             path.c_str(), dlerror());

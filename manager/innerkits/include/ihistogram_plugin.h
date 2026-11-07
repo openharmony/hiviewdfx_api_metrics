@@ -33,7 +33,7 @@ namespace histogram {
 #if (defined(__aarch64__) || defined(__x86_64__))
 inline constexpr const char *HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
 #else
-inline constexpr const char *HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
+inline constexpr const char *HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/platformsdk/libhistogram.z.so";
 #endif
 
 /**

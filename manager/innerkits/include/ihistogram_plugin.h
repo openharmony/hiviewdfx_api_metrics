@@ -31,9 +31,9 @@ namespace histogram {
  * - 32-bit systems use the /lib/ directory.
  */
 #if (defined(__aarch64__) || defined(__x86_64__))
-inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
+inline constexpr const char *HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
 #else
-inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/platformsdk/libhistogram.z.so";
+inline constexpr const char *HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
 #endif
 
 /**
@@ -41,7 +41,7 @@ inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/platformsdk/lib
  * * The factory function name used by dlsym() to instantiate the plugin.
  * This must match the 'extern "C"' function exported in the shared object.
  */
-inline const std::string CREATE_HISTOGRAM_PLUGIN = "create_histogram_plugin";
+inline constexpr const char *CREATE_HISTOGRAM_PLUGIN = "create_histogram_plugin";
 
 /**
  * Plugin Operational Status Codes

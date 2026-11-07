@@ -278,13 +278,16 @@ inline bool StartLoadPluginAsync(Task &&loadTask)
     // valid even if this guard is destroyed first (detach-after-timeout path).
     std::shared_ptr<std::atomic<bool>> finished = guard.finished;
     std::thread worker([asyncTask = std::forward<Task>(loadTask), finished]() mutable {
+        // A local class cannot capture the enclosing lambda's captures, so it
+        // holds its own reference to the completion flag as a member.
         struct LoadingGuard {
+            std::shared_ptr<std::atomic<bool>> finished;
             ~LoadingGuard()
             {
                 g_pluginLoading.store(false, std::memory_order_release);
                 finished->store(true, std::memory_order_release);
             }
-        } loadingGuard;
+        } loadingGuard { finished };
 
         IHistogramPlugin *plugin = LoadPluginSlowPath();
         if (plugin != nullptr) {

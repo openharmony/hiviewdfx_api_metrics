@@ -105,7 +105,10 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
     }
 
     (void)dlerror();
-    void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+    // RTLD_NODELETE: keep the plugin (and its dependency subtree) mapped after
+    // dlclose(), so that __cxa_atexit destructors of the plugin and of its
+    // dependencies do not run while other threads may still be inside them.
+    void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
     if (handle == nullptr) {
         HISTOGRAM_ERROR_LOG("plugin_manager: dlopen failed, path=%{public}s, err=%{public}s",
             path.c_str(), dlerror());
@@ -118,6 +121,12 @@ bool PluginManager::LoadPluginLocked(const std::string &path)
     // Resolve the factory symbol and instantiate the plugin
     if (!ResolveAndCreatePluginLocked(path)) {
         HISTOGRAM_ERROR_LOG("plugin_manager: resolve plugin failed, path=%{public}s", path.c_str());
+        // The handle must be released here: this path is retried on every
+        // sample while the plugin keeps failing, so skipping dlclose() would
+        // leak one reference count per retry. Because the library was opened
+        // with RTLD_NODELETE, dlclose() only drops the reference count; it
+        // neither unmaps the library nor runs its __cxa_atexit destructors,
+        // so this is safe even when it happens on the async loading thread.
         (void)dlclose(handle);
         pluginHandle_ = nullptr;
         pluginPath_.clear();
@@ -140,11 +149,11 @@ bool PluginManager::ResolveAndCreatePluginLocked(const std::string &path)
     }
 
     auto createFunc = reinterpret_cast<CreatePluginFunc>(
-        dlsym(pluginHandle_, CREATE_HISTOGRAM_PLUGIN.c_str()));
+        dlsym(pluginHandle_, CREATE_HISTOGRAM_PLUGIN));
     if (createFunc == nullptr) {
         const char *err = dlerror();
         HISTOGRAM_ERROR_LOG("plugin_manager: dlsym %{public}s failed, err=%{public}s",
-            CREATE_HISTOGRAM_PLUGIN.c_str(),
+            CREATE_HISTOGRAM_PLUGIN,
             err == nullptr ? "unknown error" : err);
         ResetPluginLocked();
         return false;

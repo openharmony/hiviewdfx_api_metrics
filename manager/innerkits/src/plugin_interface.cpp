@@ -17,10 +17,14 @@
 #include "plugin_interface.h"
 #include "ihistogram_plugin.h"
 #include "plugin_manager.h"
+#include "log_wrapper.h"
 
+#include <chrono>
 #include <thread>
 #include <atomic>
 #include <limits>
+#include <memory>
+#include <mutex>
 #include <utility>
 
 #ifndef HISTOGRAM_LIKELY
@@ -174,6 +178,67 @@ inline IHistogramPlugin *LoadPluginSlowPath()
 }
 
 /*
+ * Owns the asynchronous plugin-loading thread.
+ *
+ * The thread used to be detached, which meant it could still be running
+ * dlopen()/dlsym()/dlclose() while the process was exiting. During exit,
+ * __cxa_finalize() destroys the module's statics, so the thread would race
+ * against teardown of the very module it was executing in.
+ *
+ * Instead of detaching, the handle is kept here and joined before process
+ * exit. This guard is a function-local static created on first use, i.e.
+ * AFTER the namespace-scope statics of this module; C++ destroys
+ * function-local statics in reverse order of construction, so this guard is
+ * destroyed BEFORE them and the thread is joined while the module is intact.
+ *
+ * The loading path stays fully asynchronous: callers still return immediately
+ * and the hot path (plugin already loaded) never creates a thread.
+ */
+struct LoadThreadGuard {
+    std::mutex mtx;
+    std::thread worker;
+    // Shared with the worker so that a detached worker never touches this
+    // guard after it has been destroyed.
+    std::shared_ptr<std::atomic<bool>> finished { std::make_shared<std::atomic<bool>>(true) };
+
+    ~LoadThreadGuard()
+    {
+        std::thread pending;
+        std::shared_ptr<std::atomic<bool>> state;
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            pending = std::move(worker);
+            state = finished;
+        }
+        if (!pending.joinable()) {
+            return;
+        }
+        // Bounded wait: dlopen() is normally a few milliseconds, but a slow or
+        // stalled filesystem must not hold process exit hostage. Give the
+        // loading thread a short grace period, then detach and let the process
+        // finish exiting.
+        constexpr int kMaxWaitMs = 500;
+        constexpr int kPollMs = 10;
+        for (int waited = 0; waited < kMaxWaitMs; waited += kPollMs) {
+            if (state->load(std::memory_order_acquire)) {
+                pending.join();
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(kPollMs));
+        }
+        HISTOGRAM_ERROR_LOG("plugin_manager: async load thread did not finish in %{public}d ms, "
+            "detaching to avoid blocking process exit", kMaxWaitMs);
+        pending.detach();
+    }
+};
+
+inline LoadThreadGuard &GetLoadThreadGuard()
+{
+    static LoadThreadGuard guard;
+    return guard;
+}
+
+/*
  * Loads plugin instance Async.
  *
  * This async path is to dlopen so
@@ -190,19 +255,47 @@ inline bool StartLoadPluginAsync(Task &&loadTask)
         return false;
     }
 
-    std::thread([asyncTask = std::forward<Task>(loadTask)]() mutable {
+    // Force PluginManager construction before the guard so that the guard,
+    // constructed later, is destroyed earlier: the loading thread is joined
+    // before ~PluginManager() calls UnloadAllPlugins()/dlclose().
+    (void)PluginManager::GetInstance();
+
+    LoadThreadGuard &guard = GetLoadThreadGuard();
+
+    std::lock_guard<std::mutex> lock(guard.mtx);
+    if (guard.worker.joinable()) {
+        // A previous load attempt failed and is being retried; reclaim it so
+        // that failed loads cannot accumulate threads. It is expected to have
+        // finished already (g_pluginLoading gates concurrent attempts).
+        guard.worker.join();
+    }
+
+    // Reset only after the previous attempt is reclaimed, so the exit-time
+    // bounded wait cannot observe a stale "finished" flag.
+    guard.finished->store(false, std::memory_order_release);
+
+    // The worker holds its own reference to the completion flag, so it stays
+    // valid even if this guard is destroyed first (detach-after-timeout path).
+    std::shared_ptr<std::atomic<bool>> finished = guard.finished;
+    std::thread worker([asyncTask = std::forward<Task>(loadTask), finished]() mutable {
+        // A local class cannot capture the enclosing lambda's captures, so it
+        // holds its own reference to the completion flag as a member.
         struct LoadingGuard {
+            std::shared_ptr<std::atomic<bool>> finished;
             ~LoadingGuard()
             {
                 g_pluginLoading.store(false, std::memory_order_release);
+                finished->store(true, std::memory_order_release);
             }
-        } loadingGuard;
+        } loadingGuard { finished };
 
         IHistogramPlugin *plugin = LoadPluginSlowPath();
         if (plugin != nullptr) {
             asyncTask(plugin);
         }
-    }).detach();
+    });
+
+    guard.worker = std::move(worker);
 
     return true;
 }

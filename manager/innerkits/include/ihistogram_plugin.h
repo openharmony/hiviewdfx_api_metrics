@@ -29,19 +29,26 @@ namespace histogram {
  * * Defines the path of the histogram plugin based on the CPU architecture.
  * - 64-bit systems (__aarch64__, __x86_64__) use the /lib64/ directory.
  * - 32-bit systems use the /lib/ directory.
+ *
+ * Declared as constexpr so the value lives in .rodata with no dynamic
+ * initialization or destruction. A non-trivial static std::string here would
+ * be destroyed by __cxa_finalize() during process exit, freeing its heap
+ * buffer while an async plugin-loading thread may still be using c_str().
  */
 #if (defined(__aarch64__) || defined(__x86_64__))
-inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
+inline constexpr const char *HISTOGRAM_PLUGIN_SO_PATH = "/system/lib64/platformsdk/libhistogram.z.so";
 #else
-inline const std::string HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/platformsdk/libhistogram.z.so";
+inline constexpr const char *HISTOGRAM_PLUGIN_SO_PATH = "/system/lib/platformsdk/libhistogram.z.so";
 #endif
 
 /**
  * Plugin Entry Symbol
  * * The factory function name used by dlsym() to instantiate the plugin.
  * This must match the 'extern "C"' function exported in the shared object.
+ *
+ * Declared as constexpr for the same reason as HISTOGRAM_PLUGIN_SO_PATH.
  */
-inline const std::string CREATE_HISTOGRAM_PLUGIN = "create_histogram_plugin";
+inline constexpr const char *CREATE_HISTOGRAM_PLUGIN = "create_histogram_plugin";
 
 /**
  * Plugin Operational Status Codes
